@@ -79,64 +79,13 @@ module IcMetrics
     private
 
     def collect_repository_data(repo_name, username, since)
-      puts "  Fetching commits..."
-      commits = fetch_with_error_handling do
-        @client.fetch_commits(repo_name, username, since: since)
-      end
-      
-      puts "  Fetching pull requests..."
-      pull_requests = fetch_with_error_handling do
-        @client.fetch_pull_requests(repo_name, author: username, since: since)
-      end
-      
-      puts "  Fetching reviews..."
-      reviews = []
-      pull_requests.each do |pr|
-        pr_reviews = fetch_with_error_handling do
-          @client.fetch_reviews(repo_name, pr["number"])
-        end
-        # Filter reviews by username and date
-        user_reviews = pr_reviews.select { |review| review["user"]["login"] == username }
-        if since
-          since_time = since.is_a?(Date) ? since.to_time : since
-          user_reviews = user_reviews.select do |review|
-            submitted_at = Time.parse(review["submitted_at"])
-            submitted_at >= since_time
-          end
-        end
-        reviews.concat(user_reviews)
-      end
-      
-      puts "  Fetching issues..."
-      created_issues = fetch_with_error_handling do
-        @client.fetch_issues(repo_name, creator: username, since: since)
-      end
-      
-      assigned_issues = fetch_with_error_handling do
-        @client.fetch_issues(repo_name, assignee: username, since: since)
-      end
-      
-      # Merge and deduplicate issues
-      all_issues = (created_issues + assigned_issues).uniq { |issue| issue["id"] }
-      
-      puts "  Fetching PR comments..."
-      pr_comments = fetch_with_error_handling do
-        @client.fetch_pr_comments_by_user(repo_name, username, since: since)
-      end
-      
-      puts "  Fetching issue comments..."
-      issue_comments = fetch_with_error_handling do
-        @client.fetch_issue_comments_by_user(repo_name, username, since: since)
-      end
-      
-      {
-        commits: commits,
-        pull_requests: pull_requests,
-        reviews: reviews,
-        issues: all_issues,
-        pr_comments: pr_comments,
-        issue_comments: issue_comments
-      }
+      repository = Models::RepositoryData.new(
+        repo_name: repo_name,
+        username: username,
+        client: @client,
+        since: since
+      )
+      repository.collect
     end
 
     def fetch_with_error_handling(&block)

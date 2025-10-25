@@ -11,6 +11,14 @@ module IcMetrics
       @disable_sleep = ENV["DISABLE_SLEEP"] == "true"
     end
 
+    # Make a request and return parsed JSON (public for service use)
+    # @param endpoint [String] API endpoint
+    # @return [Hash] Parsed JSON response
+    def request(endpoint)
+      response = make_request(endpoint)
+      JSON.parse(response.body)
+    end
+
     # Fetch all repositories for the organization
     def fetch_repositories
       get_paginated("/orgs/#{@organization}/repos")
@@ -21,7 +29,7 @@ module IcMetrics
       puts "Searching for repositories with contributions from #{username}..."
       
       # Build date filter for search queries
-      date_filter = since ? " created:>=#{format_date_for_search(since)}" : ""
+      date_filter = since ? " created:>=#{Utils::DateFilter.format_for_search(since)}" : ""
       
       # Search for repositories where the user has commits
       search_repos = search_repositories("org:#{@organization} author:#{username}#{date_filter}")
@@ -45,17 +53,7 @@ module IcMetrics
       activity_repos = fetch_user_activity_repositories(username)
       
       # Fetch repository details for repos found by name only
-      additional_repos = []
-      all_repo_names = (reviewed_repo_names + commented_pr_repo_names + commented_issue_repo_names).uniq
-      
-      all_repo_names.each do |repo_name|
-        begin
-          repo_data = JSON.parse(make_request("/repos/#{@organization}/#{repo_name}").body)
-          additional_repos << repo_data
-        rescue Error => e
-          puts "Warning: Could not fetch details for repository #{repo_name}: #{e.message}"
-        end
-      end
+      additional_repos = fetch_repository_details(reviewed_repo_names + commented_pr_repo_names + commented_issue_repo_names)
       
       # Combine and deduplicate all repositories
       all_repos = (search_repos + pr_repos + issue_repos + activity_repos + additional_repos).uniq { |repo| repo["id"] }
@@ -170,114 +168,23 @@ module IcMetrics
 
       # Search for pull requests where the user was a reviewer
     def search_reviewed_prs(username, since: nil)
-      date_filter = since ? " created:>=#{format_date_for_search(since)}" : ""
-      query = "org:#{@organization} reviewed-by:#{username} type:pr#{date_filter}"
-      
-      results = []
-      page = 1
-      
-      loop do
-        encoded_query = URI.encode_www_form_component(query)
-        endpoint = "/search/issues?q=#{encoded_query}&page=#{page}&per_page=100"
-        
-        response = make_request(endpoint)
-        data = JSON.parse(response.body)
-        
-        break if data["items"].nil? || data["items"].empty?
-        
-        results.concat(data["items"])
-        
-        break if results.size >= data["total_count"] || results.size >= 1000
-        
-        page += 1
-        sleep(1) unless @disable_sleep
-      end      # Extract unique repository names
-      repo_names = results
-        .map { |pr| pr["repository_url"]&.split("/")&.last }
-        .compact
-        .uniq
-      
-      puts "Found #{repo_names.size} repositories where #{username} has reviewed PRs"
-      repo_names
-    rescue Error => e
-      puts "Warning: PR review search failed - #{e.message}"
-      []
+      query = build_search_query(username, since, type: "pr", filter: "reviewed-by")
+      results = search_service.search_paged(query)
+      extract_repository_names(results, username, "reviewed PRs")
     end
 
     # Search for pull requests where the user has commented
     def search_commented_prs(username, since: nil)
-      date_filter = since ? " created:>=#{format_date_for_search(since)}" : ""
-      query = "org:#{@organization} commenter:#{username} type:pr#{date_filter}"
-      
-      results = []
-      page = 1
-      
-      loop do
-        encoded_query = URI.encode_www_form_component(query)
-        endpoint = "/search/issues?q=#{encoded_query}&page=#{page}&per_page=100"
-        
-        response = make_request(endpoint)
-        data = JSON.parse(response.body)
-        
-        break if data["items"].nil? || data["items"].empty?
-        
-        results.concat(data["items"])
-        
-        break if results.size >= data["total_count"] || results.size >= 1000
-        
-        page += 1
-        sleep(1) unless @disable_sleep
-      end
-      
-      # Extract unique repository names
-      repo_names = results
-        .map { |pr| pr["repository_url"]&.split("/")&.last }
-        .compact
-        .uniq
-      
-      puts "Found #{repo_names.size} repositories where #{username} has commented on PRs"
-      repo_names
-    rescue Error => e
-      puts "Warning: PR comment search failed - #{e.message}"
-      []
+      query = build_search_query(username, since, type: "pr", filter: "commenter")
+      results = search_service.search_paged(query)
+      extract_repository_names(results, username, "commented on PRs")
     end
 
     # Search for issues where the user has commented
     def search_commented_issues(username, since: nil)
-      date_filter = since ? " created:>=#{format_date_for_search(since)}" : ""
-      query = "org:#{@organization} commenter:#{username} type:issue#{date_filter}"
-      
-      results = []
-      page = 1
-      
-      loop do
-        encoded_query = URI.encode_www_form_component(query)
-        endpoint = "/search/issues?q=#{encoded_query}&page=#{page}&per_page=100"
-        
-        response = make_request(endpoint)
-        data = JSON.parse(response.body)
-        
-        break if data["items"].nil? || data["items"].empty?
-        
-        results.concat(data["items"])
-        
-        break if results.size >= data["total_count"] || results.size >= 1000
-        
-        page += 1
-        sleep(1) unless @disable_sleep
-      end
-      
-      # Extract unique repository names
-      repo_names = results
-        .map { |issue| issue["repository_url"]&.split("/")&.last }
-        .compact
-        .uniq
-      
-      puts "Found #{repo_names.size} repositories where #{username} has commented on issues"
-      repo_names
-    rescue Error => e
-      puts "Warning: Issue comment search failed - #{e.message}"
-      []
+      query = build_search_query(username, since, type: "issue", filter: "commenter")
+      results = search_service.search_paged(query)
+      extract_repository_names(results, username, "commented on issues")
     end
 
     # Fetch issues assigned to or created by a user
@@ -291,46 +198,56 @@ module IcMetrics
       get_paginated("/repos/#{@organization}/#{repo_name}/issues?#{query_string}")
     end
 
-    # Fetch comments made by a user on issues in a repository
+      # Fetch comments made by a user on issues in a repository
     def fetch_issue_comments_by_user(repo_name, username, since: nil)
       all_comments = get_paginated("/repos/#{@organization}/#{repo_name}/issues/comments")
-      comments = all_comments.select { |comment| comment["user"]["login"] == username }
-      
-      # Filter by date if specified
-      if since
-        since_time = since.is_a?(Date) ? since.to_time : since
-        comments = comments.select do |comment|
-          created_at = Time.parse(comment["created_at"])
-          created_at >= since_time
-        end
-      end
-      
-      comments
+      filter_comments_by_user_and_date(all_comments, username, since)
     end
 
     # Fetch PR comments made by a user in a repository
     def fetch_pr_comments_by_user(repo_name, username, since: nil)
       all_comments = get_paginated("/repos/#{@organization}/#{repo_name}/pulls/comments")
-      comments = all_comments.select { |comment| comment["user"]["login"] == username }
-      
-      # Filter by date if specified
-      if since
-        since_time = since.is_a?(Date) ? since.to_time : since
-        comments = comments.select do |comment|
-          created_at = Time.parse(comment["created_at"])
-          created_at >= since_time
-        end
-      end
-      
-      comments
+      filter_comments_by_user_and_date(all_comments, username, since)
     end
 
     private
 
-    def format_date_for_search(date)
-      # Convert Date or Time to ISO8601 format (YYYY-MM-DD) for GitHub search
-      date_obj = date.is_a?(Date) ? date : Date.parse(date.to_s)
-      date_obj.strftime("%Y-%m-%d")
+    def search_service
+      @search_service ||= Services::GithubSearchService.new(self)
+    end
+
+    def build_search_query(username, since, type:, filter:)
+      query_parts = ["org:#{@organization}", "#{filter}:#{username}", "type:#{type}"]
+      query_parts << "created:>=#{Utils::DateFilter.format_for_search(since)}" if since
+      query_parts.join(" ")
+    end
+
+    def extract_repository_names(results, username, context)
+      repo_names = results
+        .map { |item| item.dig("repository_url")&.split("/")&.last }
+        .compact
+        .uniq
+
+      puts "Found #{repo_names.size} repositories where #{username} has #{context}"
+      repo_names
+    rescue Error => e
+      puts "Warning: Search failed for #{context} - #{e.message}"
+      []
+    end
+
+    def fetch_repository_details(repo_names)
+      repo_names.uniq.map do |repo_name|
+        request("/repos/#{@organization}/#{repo_name}")
+      rescue Error => e
+        puts "Warning: Could not fetch details for repository #{repo_name}: #{e.message}"
+        nil
+      end.compact
+    end
+
+    def filter_comments_by_user_and_date(comments, username, since)
+      comments
+        .select { |comment| comment["user"]["login"] == username }
+        .select { |comment| Utils::DateFilter.within_range?(comment["created_at"], since) }
     end
 
     def get_paginated(endpoint, page: 1, per_page: 100)
@@ -372,13 +289,29 @@ module IcMetrics
       when "200"
         response
       when "404"
-        raise Error, "Resource not found: #{endpoint}"
+        raise ResourceNotFoundError.new(
+          "Resource not found",
+          status_code: 404,
+          endpoint: endpoint
+        )
       when "403"
-        raise Error, "Rate limit exceeded or insufficient permissions"
+        raise RateLimitError.new(
+          "Rate limit exceeded or insufficient permissions",
+          status_code: 403,
+          endpoint: endpoint
+        )
       when "401"
-        raise Error, "Invalid GitHub token"
+        raise AuthenticationError.new(
+          "Invalid GitHub token",
+          status_code: 401,
+          endpoint: endpoint
+        )
       else
-        raise Error, "GitHub API error: #{response.code} - #{response.body}"
+        raise ApiError.new(
+          "GitHub API error: #{response.body}",
+          status_code: response.code.to_i,
+          endpoint: endpoint
+        )
       end
     end
   end

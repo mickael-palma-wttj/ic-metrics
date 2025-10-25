@@ -18,7 +18,7 @@ module IcMetrics
 
     def validate_config
       unless @github_token
-        raise Error, <<~MSG
+        raise ConfigurationError, <<~MSG
           GITHUB_TOKEN environment variable is required.
           
           To set up:
