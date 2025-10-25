@@ -1,0 +1,8 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require_relative "../lib/ic_metrics"
+require_relative "../lib/ic_metrics/cli"
+
+cli = IcMetrics::CLI.new
+cli.run(ARGV)
