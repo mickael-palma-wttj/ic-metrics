@@ -8,7 +8,7 @@ module IcMetrics
     def initialize
       @github_token = ENV["GITHUB_TOKEN"]
       @organization = ENV["GITHUB_ORG"] || "WTTJ"
-      @data_directory = ENV["DATA_DIRECTORY"] || File.expand_path("../data", __dir__)
+      @data_directory = ENV["DATA_DIRECTORY"] || File.expand_path("../../data", __dir__)
       
       validate_config
       ensure_data_directory

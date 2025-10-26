@@ -86,11 +86,6 @@ List the most severe problems found, each with:
 - Code review engagement metrics
 - Documentation completeness scores
 
-### Positive Highlights
-- Identify 2-3 strengths or positive patterns
-- Areas where the developer excels
-- Improvements observed over time
-
 ### Recommendations
 Prioritized list of actionable improvements:
 1. Immediate actions (critical issues)
@@ -109,7 +104,6 @@ Prioritized list of actionable improvements:
 - Focus on improvement, not blame
 - Frame issues as growth opportunities
 - Acknowledge context may exist beyond the data
-- Balance criticism with positive observations
 
 ### Be Specific and Actionable
 - Avoid vague statements like "could be better"
@@ -148,7 +142,7 @@ Generate a comprehensive Markdown document with:
 - Clear heading hierarchy (H1 for title, H2 for sections, H3 for subsections)
 - Code blocks for evidence (use triple backticks)
 - Tables for statistics when appropriate
-- Emojis for visual scanning (⚠️ for warnings, ✅ for positives, 📊 for metrics)
+- Emojis for visual scanning (⚠️ for warnings, 📊 for metrics)
 - Bullet points for lists
 - Bold for emphasis on critical points
 - Horizontal rules (---) to separate major sections
@@ -212,7 +206,6 @@ When analyzing data, ask yourself:
 4. What practices harm team collaboration?
 5. What issues will cause problems in 6 months?
 6. What would I want my reports to improve on?
-7. What strengths can we amplify?
 
 ## Success Criteria
 
@@ -220,7 +213,7 @@ A good analysis will:
 - Identify 5-10 critical or high-severity issues
 - Provide specific evidence for each finding
 - Offer clear, actionable recommendations
-- Balance criticism with acknowledgment of positive patterns
+- Focus on areas requiring improvement
 - Help the developer and team improve measurably
 - Be referenced in 1-on-1s and performance reviews
 - Drive concrete changes in behavior and practice

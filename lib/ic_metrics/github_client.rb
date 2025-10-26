@@ -121,7 +121,20 @@ module IcMetrics
       params[:since] = since.iso8601 if since
       
       query_string = URI.encode_www_form(params)
-      get_paginated("/repos/#{@organization}/#{repo_name}/commits?#{query_string}")
+      commits = get_paginated("/repos/#{@organization}/#{repo_name}/commits?#{query_string}")
+      
+      # Enrich commits with detailed stats (additions, deletions)
+      commits.each do |commit|
+        begin
+          commit_detail = get("/repos/#{@organization}/#{repo_name}/commits/#{commit["sha"]}")
+          commit["stats"] = commit_detail["stats"] if commit_detail && commit_detail["stats"]
+        rescue StandardError
+          # If we can't fetch detailed stats, just use empty stats
+          commit["stats"] ||= { "additions" => 0, "deletions" => 0, "total" => 0 }
+        end
+      end
+      
+      commits
     end
 
     # Fetch pull requests for a repository
@@ -269,6 +282,11 @@ module IcMetrics
       comments
         .select { |comment| comment["user"]["login"] == username }
         .select { |comment| Utils::DateFilter.within_range?(comment["created_at"], since) }
+    end
+
+    def get(endpoint)
+      response = make_request(endpoint)
+      JSON.parse(response.body)
     end
 
     def get_paginated(endpoint, page: 1, per_page: PAGINATION_PER_PAGE)
