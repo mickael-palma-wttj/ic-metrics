@@ -18,7 +18,7 @@ module IcMetrics
         date_string = extract_date_string(arg)
         Date.parse(date_string)
       rescue Date::Error
-        raise InvalidDateFormatError, "Invalid date format '#{date_string}'. Use YYYY-MM-DD"
+        raise Errors::InvalidDateFormatError, "Invalid date format '#{date_string}'. Use YYYY-MM-DD"
       end
 
       private

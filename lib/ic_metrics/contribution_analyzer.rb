@@ -10,55 +10,66 @@ module IcMetrics
 
     # Analyze contributions for a developer
     def analyze_developer(username)
-      data_file = File.join(@data_dir, username, "contributions.json")
+      data = load_contribution_data(username)
       
-      unless File.exist?(data_file)
-        raise DataNotFoundError, "No data found for developer: #{username}. Run data collection first."
-      end
-      
-      data = JSON.parse(File.read(data_file))
-      
-      analysis = {
+      {
         developer: username,
         analyzed_at: Time.now.iso8601,
         period: extract_period(data),
         summary: data["summary"],
         detailed_analysis: perform_detailed_analysis(data),
         recommendations: generate_recommendations(data)
-      }
-      
-      # Save analysis
-      analysis_file = File.join(@data_dir, username, "analysis.json")
-      File.write(analysis_file, JSON.pretty_generate(analysis))
-      
-      # Generate report
-      generate_report(analysis)
-      
-      analysis
+      }.tap do |analysis|
+        save_and_report(username, analysis)
+      end
     end
 
     private
 
-    def extract_period(data)
-      all_dates = []
+    def load_contribution_data(username)
+      data_file = File.join(@data_dir, username, "contributions.json")
       
-      data["repositories"].each do |repo_name, repo_data|
-        repo_data["commits"].each { |commit| all_dates << commit["commit"]["author"]["date"] }
-        repo_data["pull_requests"].each { |pr| all_dates << pr["created_at"] }
-        repo_data["reviews"].each { |review| all_dates << review["submitted_at"] }
-        repo_data["issues"].each { |issue| all_dates << issue["created_at"] }
-        repo_data["pr_comments"]&.each { |comment| all_dates << comment["created_at"] }
-        repo_data["issue_comments"]&.each { |comment| all_dates << comment["created_at"] }
+      unless File.exist?(data_file)
+        raise Errors::DataNotFoundError, "No data found for developer: #{username}. Run data collection first."
       end
+      
+      JSON.parse(File.read(data_file))
+    end
+
+    def save_and_report(username, analysis)
+      analysis_file = File.join(@data_dir, username, "analysis.json")
+      File.write(analysis_file, JSON.pretty_generate(analysis))
+      generate_report(analysis)
+    end
+
+    def extract_period(data)
+      all_dates = collect_all_dates(data["repositories"])
       
       return { from: nil, to: nil } if all_dates.empty?
       
-      dates = all_dates.compact.map { |date| Time.parse(date) }.sort
+      sorted_dates = all_dates.compact.map { |date| Time.parse(date) }.sort
       {
-        from: dates.first.iso8601,
-        to: dates.last.iso8601,
-        duration_days: (dates.last - dates.first).to_i / (24 * 60 * 60)
+        from: sorted_dates.first.iso8601,
+        to: sorted_dates.last.iso8601,
+        duration_days: calculate_duration_days(sorted_dates)
       }
+    end
+
+    def collect_all_dates(repositories)
+      [].tap do |dates|
+        repositories.each_value do |repo_data|
+          dates.concat(repo_data["commits"].map { |c| c.dig("commit", "author", "date") })
+          dates.concat(repo_data["pull_requests"].map { |pr| pr["created_at"] })
+          dates.concat(repo_data["reviews"].map { |r| r["submitted_at"] })
+          dates.concat(repo_data["issues"].map { |i| i["created_at"] })
+          dates.concat((repo_data["pr_comments"] || []).map { |c| c["created_at"] })
+          dates.concat((repo_data["issue_comments"] || []).map { |c| c["created_at"] })
+        end
+      end
+    end
+
+    def calculate_duration_days(sorted_dates)
+      ((sorted_dates.last - sorted_dates.first) / (24 * 60 * 60)).to_i
     end
 
     def perform_detailed_analysis(data)

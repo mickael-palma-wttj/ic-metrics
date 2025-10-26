@@ -4,6 +4,10 @@ module IcMetrics
   # GitHub API client for fetching contribution data
   class GithubClient
     BASE_URL = "https://api.github.com"
+    PAGINATION_PER_PAGE = 100
+    RATE_LIMIT_DELAY = 0.1
+    SEARCH_RATE_LIMIT_DELAY = 1
+    SECONDS_PER_DAY = 86_400 # 24 * 60 * 60
     
     def initialize(config)
       @token = config.github_token
@@ -28,35 +32,21 @@ module IcMetrics
     def fetch_user_repositories(username, since: nil)
       puts "Searching for repositories with contributions from #{username}..."
       
-      # Build date filter for search queries
-      date_filter = since ? " created:>=#{Utils::DateFilter.format_for_search(since)}" : ""
+      date_filter = build_date_filter(since)
       
-      # Search for repositories where the user has commits
-      search_repos = search_repositories("org:#{@organization} author:#{username}#{date_filter}")
+      # Collect all repository sources
+      repo_collections = [
+        search_author_repositories(username, date_filter),
+        search_pr_repositories(username, date_filter),
+        search_issue_repositories(username, date_filter),
+        fetch_reviewed_repositories(username, since),
+        fetch_commented_pr_repositories(username, since),
+        fetch_commented_issue_repositories(username, since),
+        fetch_user_activity_repositories(username)
+      ]
       
-      # Also search for repositories where the user has PRs
-      pr_repos = search_repositories("org:#{@organization} author:#{username} type:pr#{date_filter}")
-      
-      # Also search for repositories where the user has issues
-      issue_repos = search_repositories("org:#{@organization} author:#{username} type:issue#{date_filter}")
-      
-      # Get repositories where user reviewed PRs
-      reviewed_repo_names = search_reviewed_prs(username, since: since)
-      
-      # Get repositories where user commented on PRs
-      commented_pr_repo_names = search_commented_prs(username, since: since)
-      
-      # Get repositories where user commented on issues
-      commented_issue_repo_names = search_commented_issues(username, since: since)
-      
-      # Get additional repositories from user activity
-      activity_repos = fetch_user_activity_repositories(username)
-      
-      # Fetch repository details for repos found by name only
-      additional_repos = fetch_repository_details(reviewed_repo_names + commented_pr_repo_names + commented_issue_repo_names)
-      
-      # Combine and deduplicate all repositories
-      all_repos = (search_repos + pr_repos + issue_repos + activity_repos + additional_repos).uniq { |repo| repo["id"] }
+      # Combine and deduplicate
+      all_repos = repo_collections.flatten.uniq { |repo| repo["id"] }
       
       puts "Found #{all_repos.size} total repositories with contributions from #{username}"
       all_repos
@@ -84,7 +74,7 @@ module IcMetrics
         page += 1
         
         # Respect rate limits - search API has stricter limits
-        sleep(1) unless @disable_sleep
+        sleep(SEARCH_RATE_LIMIT_DELAY) unless @disable_sleep
       end
       
       results
@@ -216,6 +206,37 @@ module IcMetrics
       @search_service ||= Services::GithubSearchService.new(self)
     end
 
+    def build_date_filter(since)
+      since ? " created:>=#{Utils::DateFilter.format_for_search(since)}" : ""
+    end
+
+    def search_author_repositories(username, date_filter)
+      search_repositories("org:#{@organization} author:#{username}#{date_filter}")
+    end
+
+    def search_pr_repositories(username, date_filter)
+      search_repositories("org:#{@organization} author:#{username} type:pr#{date_filter}")
+    end
+
+    def search_issue_repositories(username, date_filter)
+      search_repositories("org:#{@organization} author:#{username} type:issue#{date_filter}")
+    end
+
+    def fetch_reviewed_repositories(username, since)
+      repo_names = search_reviewed_prs(username, since: since)
+      fetch_repository_details(repo_names)
+    end
+
+    def fetch_commented_pr_repositories(username, since)
+      repo_names = search_commented_prs(username, since: since)
+      fetch_repository_details(repo_names)
+    end
+
+    def fetch_commented_issue_repositories(username, since)
+      repo_names = search_commented_issues(username, since: since)
+      fetch_repository_details(repo_names)
+    end
+
     def build_search_query(username, since, type:, filter:)
       query_parts = ["org:#{@organization}", "#{filter}:#{username}", "type:#{type}"]
       query_parts << "created:>=#{Utils::DateFilter.format_for_search(since)}" if since
@@ -250,7 +271,7 @@ module IcMetrics
         .select { |comment| Utils::DateFilter.within_range?(comment["created_at"], since) }
     end
 
-    def get_paginated(endpoint, page: 1, per_page: 100)
+    def get_paginated(endpoint, page: 1, per_page: PAGINATION_PER_PAGE)
       results = []
       
       loop do
@@ -266,7 +287,7 @@ module IcMetrics
         page += 1
         
         # Respect rate limits
-        sleep(0.1) unless @disable_sleep
+        sleep(RATE_LIMIT_DELAY) unless @disable_sleep
       end
       
       results
@@ -289,25 +310,25 @@ module IcMetrics
       when "200"
         response
       when "404"
-        raise ResourceNotFoundError.new(
+        raise Errors::ResourceNotFoundError.new(
           "Resource not found",
           status_code: 404,
           endpoint: endpoint
         )
       when "403"
-        raise RateLimitError.new(
+        raise Errors::RateLimitError.new(
           "Rate limit exceeded or insufficient permissions",
           status_code: 403,
           endpoint: endpoint
         )
       when "401"
-        raise AuthenticationError.new(
+        raise Errors::AuthenticationError.new(
           "Invalid GitHub token",
           status_code: 401,
           endpoint: endpoint
         )
       else
-        raise ApiError.new(
+        raise Errors::ApiError.new(
           "GitHub API error: #{response.body}",
           status_code: response.code.to_i,
           endpoint: endpoint

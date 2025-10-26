@@ -38,7 +38,7 @@ module IcMetrics
       def show_report(username)
         report_file = File.join(@config.data_directory, username, "report.md")
 
-        raise DataNotFoundError, "No report found for #{username}. Run analysis first." unless File.exist?(report_file)
+        raise Errors::DataNotFoundError, "No report found for #{username}. Run analysis first." unless File.exist?(report_file)
 
         puts File.read(report_file)
       end

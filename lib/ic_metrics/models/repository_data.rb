@@ -39,16 +39,16 @@ module IcMetrics
 
       def fetch_reviews
         log_and_fetch("reviews") do
-          @pull_requests.flat_map { |pr| fetch_user_reviews(pr) }
+          @pull_requests.flat_map { |pr| fetch_user_reviews_for_pr(pr) }
         end
       end
 
-      def fetch_user_reviews(pr)
-        reviews = @client.fetch_reviews(@repo_name, pr["number"])
-        filter_user_reviews(reviews)
+      def fetch_user_reviews_for_pr(pr)
+        all_reviews = @client.fetch_reviews(@repo_name, pr["number"])
+        filter_by_user_and_date(all_reviews)
       end
 
-      def filter_user_reviews(reviews)
+      def filter_by_user_and_date(reviews)
         reviews
           .select { |review| review["user"]["login"] == @username }
           .select { |review| within_date_range?(review["submitted_at"]) }
