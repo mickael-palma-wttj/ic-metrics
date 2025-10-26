@@ -160,32 +160,12 @@ module IcMetrics
       end
 
       def call_dust_api(api_key, workspace_id, agent_id, system_prompt, csv_data, username)
-        # First, upload CSV files and get file IDs
-        puts "Uploading CSV files to Dust..."
-        file_ids = upload_csv_files(api_key, workspace_id, csv_data)
+        puts "Creating conversation with agent..."
         
-        if file_ids.empty?
-          return {
-            content: "Error: Failed to upload CSV files",
-            conversation_url: nil,
-            conversation_id: nil
-          }
-        end
-        
-        puts "✓ Uploaded #{file_ids.size} CSV files"
-        
-        # Create conversation with file references
+        # Create conversation with inline CSV data
         uri = URI.parse("https://dust.tt/api/v1/w/#{workspace_id}/assistant/conversations")
         
-        # Build content fragments with file IDs
-        content_fragments = file_ids.map do |filename, file_id|
-          {
-            fileId: file_id,
-            title: filename
-          }
-        end
-        
-        user_message = build_analysis_message_with_file_references(username, system_prompt, file_ids)
+        user_message = build_analysis_message_with_inline_csv(username, system_prompt, csv_data)
         
         request_body = {
           title: "IC Metrics Analysis: #{username}",
@@ -200,8 +180,7 @@ module IcMetrics
               fullName: nil,
               email: nil,
               profilePictureUrl: nil
-            },
-            contentFragments: content_fragments
+            }
           }
         }.to_json
 
@@ -266,97 +245,17 @@ module IcMetrics
         }
       end
 
-      def upload_csv_files(api_key, workspace_id, csv_data)
-        file_ids = {}
-        
-        csv_data.each do |filename, content|
-          # Upload file to Dust
-          uri = URI.parse("https://dust.tt/api/v1/w/#{workspace_id}/files")
-          
-          # Encode file content as base64
-          encoded_content = Base64.strict_encode64(content)
-          
-          request_body = {
-            fileName: filename,
-            fileSize: content.bytesize,
-            useCase: "conversation",
-            contentType: "text/csv",
-            content: encoded_content
-          }.to_json
-          
-          request = Net::HTTP::Post.new(uri)
-          request["Authorization"] = "Bearer #{api_key}"
-          request["Content-Type"] = "application/json"
-          request.body = request_body
-          
-          response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
-            http.request(request)
-          end
-          
-          if response.code.to_i == 200 || response.code.to_i == 201
-            result = JSON.parse(response.body)
-            file_id = result.dig("file", "id") || result.dig("file", "sId") || result["id"]
-            
-            if file_id
-              file_ids[filename] = file_id
-              puts "  ✓ Uploaded #{filename} (ID: #{file_id})"
-            else
-              puts "  ✗ Failed to get file ID for #{filename}"
-              puts "    Response: #{response.body}"
-            end
-          else
-            puts "  ✗ Failed to upload #{filename}: #{response.code}"
-            puts "    Response: #{response.body}"
-          end
-        end
-        
-        file_ids
-      rescue StandardError => e
-        puts "Error uploading files: #{e.message}"
-        puts e.backtrace.first(5).join("\n")
-        {}
-      end
-
-      def build_analysis_message_with_file_references(username, system_prompt, file_ids_hash)
-        message = "#{system_prompt}\n\n"
-        message += "---\n\n"
-        message += "# GitHub Contribution Analysis for #{username}\n\n"
-        message += "I've attached #{file_ids_hash.size} CSV files containing GitHub contribution data:\n\n"
-        
-        file_ids_hash.each do |filename, file_id|
-          message += "- #{filename} (File ID: #{file_id})\n"
-        end
-        
-        message += "\nPlease analyze these attached CSV files and generate a comprehensive report with:\n"
-        message += "1. Critical issues and red flags\n"
-        message += "2. Work pattern analysis\n"
-        message += "3. Quality metrics\n"
-        message += "4. Positive highlights\n"
-        message += "5. Prioritized recommendations\n"
-        
-        message
-      end
-
-      def build_analysis_message_with_attachments(username, system_prompt, csv_data)
+      def build_analysis_message_with_inline_csv(username, system_prompt, csv_data)
         message = "#{system_prompt}\n\n"
         message += "---\n\n"
         message += "# GitHub Contribution Analysis for #{username}\n\n"
         message += "I'm providing GitHub contribution data in CSV format below.\n\n"
         
-        # Include actual CSV data inline
+        # Include actual CSV data inline without truncation
         csv_data.each do |filename, content|
-          lines = content.lines
           message += "## #{filename}\n\n"
           message += "```csv\n"
-          
-          # Include first 100 lines of each CSV (or all if less)
-          if lines.count > 100
-            message += lines[0...100].join
-            message += "\n... (#{lines.count - 100} more lines truncated)\n"
-          else
-            message += content
-          end
-          
+          message += content
           message += "```\n\n"
         end
         
