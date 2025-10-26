@@ -8,6 +8,7 @@ gem "zeitwerk", "~> 2.6"
 gem "net-http", "~> 0.4.0"
 gem "json", "~> 2.6"
 gem "dotenv", "~> 2.8"
+gem "concurrent-ruby", "~> 1.2"
 
 group :development, :test do
   gem "pry"

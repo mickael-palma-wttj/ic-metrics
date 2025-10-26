@@ -22,10 +22,11 @@ module IcMetrics
             help                                      Show this help message
 
           ENVIRONMENT VARIABLES:
-            GITHUB_TOKEN     GitHub personal access token (required)
-            GITHUB_ORG       GitHub organization name (default: WTTJ)
-            DATA_DIRECTORY   Custom data storage path (default: ./data)
-            DISABLE_SLEEP    Disable rate limit sleep delays (default: false)
+            GITHUB_TOKEN            GitHub personal access token (required)
+            GITHUB_ORG              GitHub organization name (default: WTTJ)
+            DATA_DIRECTORY          Custom data storage path (default: ./data)
+            DISABLE_SLEEP           Disable rate limit sleep delays (default: false)
+            MAX_PARALLEL_WORKERS    Number of parallel workers for data collection (default: 4)
             
             You can set these in a .env file (recommended) or export them directly.
 

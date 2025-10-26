@@ -4,26 +4,60 @@ module IcMetrics
   module Models
     # Value object for repository data collection
     class RepositoryData
-      def initialize(repo_name:, username:, client:, since: nil)
+      def initialize(repo_name:, username:, client:, since: nil, quiet: false)
         @repo_name = repo_name
         @username = username
         @client = client
         @since = since
         @pull_requests = nil
+        @quiet = quiet
       end
 
       def collect
-        {
-          commits: fetch_commits,
-          pull_requests: fetch_pull_requests,
-          reviews: fetch_reviews,
-          issues: fetch_issues,
-          pr_comments: fetch_pr_comments,
-          issue_comments: fetch_issue_comments
+        # Parallelize independent data fetching operations
+        futures = {
+          commits: fetch_commits_async,
+          pull_requests: fetch_pull_requests_async,
+          issues: fetch_issues_async,
+          pr_comments: fetch_pr_comments_async,
+          issue_comments: fetch_issue_comments_async
         }
+        
+        # Wait for all futures to complete
+        results = futures.transform_values(&:value)
+        
+        # Reviews depend on pull_requests, so fetch after PRs are ready
+        results[:reviews] = fetch_reviews_with_prs(results[:pull_requests])
+        
+        results
       end
 
       private
+
+      def fetch_commits_async
+        Concurrent::Future.execute { fetch_commits }
+      end
+
+      def fetch_pull_requests_async
+        Concurrent::Future.execute { fetch_pull_requests }
+      end
+
+      def fetch_issues_async
+        Concurrent::Future.execute { fetch_issues }
+      end
+
+      def fetch_pr_comments_async
+        Concurrent::Future.execute { fetch_pr_comments }
+      end
+
+      def fetch_issue_comments_async
+        Concurrent::Future.execute { fetch_issue_comments }
+      end
+
+      def fetch_reviews_with_prs(pull_requests)
+        @pull_requests = pull_requests
+        fetch_reviews
+      end
 
       def fetch_commits
         log_and_fetch("commits") do
@@ -83,10 +117,16 @@ module IcMetrics
       end
 
       def log_and_fetch(resource_name)
-        puts "  Fetching #{resource_name}..."
-        yield
+        puts "  ⏳ Fetching #{resource_name}..." unless @quiet
+        
+        result = yield
+        
+        count = result.is_a?(Array) ? result.size : 0
+        puts "  ✓ Fetched #{count} #{resource_name}" unless @quiet
+        
+        result
       rescue IcMetrics::Error => e
-        puts "    Warning: #{e.message}"
+        puts "  ⚠️  Warning: #{e.message}" unless @quiet
         []
       end
     end

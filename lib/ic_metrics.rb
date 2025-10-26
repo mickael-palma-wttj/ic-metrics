@@ -9,6 +9,7 @@ require "date"
 require "time"
 require "set"
 require "dotenv/load"
+require "concurrent-ruby"
 
 module IcMetrics
   class Error < StandardError; end

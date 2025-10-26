@@ -3,10 +3,14 @@
 module IcMetrics
   # Data collector to fetch and store developer contribution data
   class DataCollector
+    DEFAULT_MAX_PARALLEL_REQUESTS = 4
+
     def initialize(config)
       @config = config
       @client = GithubClient.new(config)
       @data_dir = config.data_directory
+      @max_workers = (ENV["MAX_PARALLEL_WORKERS"] || DEFAULT_MAX_PARALLEL_REQUESTS).to_i
+      @thread_pool = Concurrent::FixedThreadPool.new(@max_workers)
     end
 
     # Collect all contribution data for a developer
@@ -60,14 +64,45 @@ module IcMetrics
     end
 
     def collect_all_repository_data(repositories, username, since)
-      {}.tap do |repo_data|
-        repositories.each_with_index do |repo, index|
-          repo_name = repo["name"]
-          puts "Processing repository #{index + 1}/#{repositories.size}: #{repo_name}"
-          repo_data[repo_name] = collect_repository_data(repo_name, username, since)
+      puts "\nStarting data collection for #{repositories.size} repositories..."
+      
+      repo_data = {}
+      
+      repositories.each_with_index do |repo, index|
+        repo_name = repo["name"]
+        current = index + 1
+        total = repositories.size
+        
+        puts "\n🔄 [#{current}/#{total}] Processing: #{repo_name}"
+        
+        begin
+          data = collect_repository_data(repo_name, username, since)
+          repo_data[repo_name] = data
+          
+          summary = summarize_repo_data(data)
+          puts "✅ [#{current}/#{total}] Completed: #{repo_name} - #{summary}"
+        rescue StandardError => e
+          puts "❌ [#{current}/#{total}] Error: #{repo_name} - #{e.message}"
         end
       end
+      
+      puts "\n✨ All repositories processed!\n"
+      
+      repo_data
     end
+    
+    def summarize_repo_data(data)
+      parts = []
+      parts << "#{data[:commits].size} commits" if data[:commits].any?
+      parts << "#{data[:pull_requests].size} PRs" if data[:pull_requests].any?
+      parts << "#{data[:reviews].size} reviews" if data[:reviews].any?
+      parts << "#{data[:issues].size} issues" if data[:issues].any?
+      parts << "#{data[:pr_comments].size} PR comments" if data[:pr_comments].any?
+      parts << "#{data[:issue_comments].size} issue comments" if data[:issue_comments].any?
+      parts.empty? ? "no activity" : parts.join(", ")
+    end
+    
+
 
     def initialize_summary
       {
@@ -107,7 +142,8 @@ module IcMetrics
         repo_name: repo_name,
         username: username,
         client: @client,
-        since: since
+        since: since,
+        quiet: false
       )
       repository.collect
     end
