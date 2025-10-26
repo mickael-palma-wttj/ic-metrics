@@ -8,6 +8,9 @@ module IcMetrics
         "collect" => CollectCommand,
         "analyze" => AnalyzeCommand,
         "report" => ReportCommand,
+        "export" => ExportCommand,
+        "export-advanced" => ExportAdvancedCommand,
+        "analyze-csv" => AnalyzeCsvCommand,
         "help" => HelpCommand
       }.freeze
 
