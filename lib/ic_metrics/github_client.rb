@@ -161,7 +161,26 @@ module IcMetrics
 
     # Fetch reviews for a specific pull request
     def fetch_reviews(repo_name, pr_number)
-      get_paginated("/repos/#{@organization}/#{repo_name}/pulls/#{pr_number}/reviews")
+      reviews = get_paginated("/repos/#{@organization}/#{repo_name}/pulls/#{pr_number}/reviews")
+      
+      # For COMMENTED reviews with empty body, fetch actual comments
+      reviews_needing_comments = reviews.select { |r| r["body"].to_s.strip.empty? && r["state"] == "COMMENTED" }
+      
+      if reviews_needing_comments.any?
+        # Fetch all comments once
+        all_comments = get_paginated("/repos/#{@organization}/#{repo_name}/pulls/#{pr_number}/comments")
+        
+        # Create a map of review_id => comments
+        comments_by_review = all_comments.group_by { |c| c["pull_request_review_id"] }
+        
+        # Enrich reviews with comment bodies
+        reviews_needing_comments.each do |review|
+          comments = comments_by_review[review["id"]] || []
+          review["body"] = comments.map { |c| c["body"] }.compact.join("\n---\n") if comments.any?
+        end
+      end
+      
+      reviews
     end
 
     # Fetch review comments for a specific pull request
