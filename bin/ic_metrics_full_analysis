@@ -1,0 +1,138 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Full IC Metrics Analysis Script
+# Runs all collection, export, and analysis commands for a given user
+
+require "optparse"
+
+class FullAnalysis
+  STEPS = [
+    { name: "Collecting GitHub data", cmd: "collect" },
+    { name: "Exporting enhanced commits", cmd: "export-advanced enhanced" },
+    { name: "Exporting activity timeline", cmd: "export-advanced timeline" },
+    { name: "Exporting analysis JSON", cmd: "export-advanced analysis" },
+    { name: "Exporting merged CSV", cmd: "export-advanced merged" },
+    { name: "Running AI analysis", cmd: "analyze-csv" }
+  ].freeze
+
+  def initialize(username, since: nil, until_date: nil)
+    @username = username
+    @since = since
+    @until_date = until_date
+    @bin_path = File.expand_path("ic_metrics", __dir__)
+  end
+
+  def run
+    puts banner
+    puts "👤 Developer: #{@username}"
+    puts "📅 Period: #{format_period}"
+    puts "=" * 50
+    puts
+
+    start_time = Time.now
+
+    STEPS.each_with_index do |step, index|
+      run_step(step, index + 1)
+    end
+
+    elapsed = (Time.now - start_time).round(1)
+    puts
+    puts "=" * 50
+    puts "✅ Full analysis completed in #{elapsed}s"
+    puts "📁 Results in: data/#{@username}/"
+  end
+
+  private
+
+  def banner
+    <<~BANNER
+
+      ╔══════════════════════════════════════════════════╗
+      ║         IC Metrics Full Analysis                 ║
+      ╚══════════════════════════════════════════════════╝
+
+    BANNER
+  end
+
+  def format_period
+    parts = []
+    parts << "from #{@since}" if @since
+    parts << "until #{@until_date}" if @until_date
+    parts.empty? ? "all time" : parts.join(" ")
+  end
+
+  def run_step(step, number)
+    puts "┌─────────────────────────────────────────────────"
+    puts "│ Step #{number}/#{STEPS.size}: #{step[:name]}"
+    puts "└─────────────────────────────────────────────────"
+
+    command = build_command(step[:cmd])
+    puts "  Running: #{command}"
+    puts
+
+    success = system(command)
+
+    if success
+      puts
+      puts "  ✓ #{step[:name]} completed"
+    else
+      puts
+      puts "  ✗ #{step[:name]} failed (exit code: #{$?.exitstatus})"
+      exit 1
+    end
+
+    puts
+  end
+
+  def build_command(cmd)
+    parts = ["ruby", @bin_path, cmd, @username]
+
+    # Add date flags only for collect command (after username)
+    if cmd == "collect"
+      parts << "--since=#{@since}" if @since
+      parts << "--until=#{@until_date}" if @until_date
+    end
+
+    parts.join(" ")
+  end
+end
+
+# Parse command line arguments
+options = {}
+
+parser = OptionParser.new do |opts|
+  opts.banner = "Usage: #{$PROGRAM_NAME} <username> [options]"
+
+  opts.on("-s", "--since DATE", "Start date for data collection (YYYY-MM-DD)") do |date|
+    options[:since] = date
+  end
+
+  opts.on("-u", "--until DATE", "End date for data collection (YYYY-MM-DD)") do |date|
+    options[:until_date] = date
+  end
+
+  opts.on("-h", "--help", "Show this help message") do
+    puts opts
+    exit
+  end
+end
+
+parser.parse!
+
+username = ARGV[0]
+
+if username.nil? || username.empty?
+  puts parser.banner
+  puts
+  puts "Error: Username is required"
+  puts
+  puts "Examples:"
+  puts "  #{$PROGRAM_NAME} baptistetruchet --since=2025-09-01"
+  puts "  #{$PROGRAM_NAME} baptistetruchet --since=2025-09-01 --until=2025-11-30"
+  puts "  #{$PROGRAM_NAME} baptistetruchet -s 2025-09-01 -u 2025-11-30"
+  exit 1
+end
+
+# Run the full analysis
+FullAnalysis.new(username, since: options[:since], until_date: options[:until_date]).run

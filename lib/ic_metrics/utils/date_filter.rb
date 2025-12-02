@@ -11,14 +11,18 @@ module IcMetrics
         normalize_date(date).strftime("%Y-%m-%d")
       end
 
-      # Check if a timestamp is within range of a since date
+      # Check if a timestamp is within range of since/until dates
       # @param timestamp [String] ISO8601 timestamp string
-      # @param since_date [Date, Time, nil] The since date to compare against
-      # @return [Boolean] True if timestamp is within range or since_date is nil
-      def self.within_range?(timestamp, since_date)
-        return true unless since_date
+      # @param since_date [Date, Time, nil] The start date to compare against
+      # @param until_date [Date, Time, nil] The end date to compare against
+      # @return [Boolean] True if timestamp is within range
+      def self.within_range?(timestamp, since_date, until_date = nil)
+        time = Time.parse(timestamp)
 
-        Time.parse(timestamp) >= normalize_time(since_date)
+        return false if since_date && time < normalize_time(since_date)
+        return false if until_date && time > normalize_time(until_date)
+
+        true
       end
 
       # Normalize input to a Date object

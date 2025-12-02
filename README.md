@@ -5,11 +5,16 @@ A Ruby application to analyze developer contributions in your GitHub organizatio
 ## Features
 
 - **Data Collection**: Fetch comprehensive contribution data from GitHub API
-- **Local Storage**: Store all evidence locally in JSON format for analysis
+  - Date range filtering with `--since` and `--until` options
+  - Parallel processing for faster data retrieval
+- **Local Storage**: Store all evidence locally in JSON and CSV formats
+- **CSV Exports**: Export detailed data for external analysis tools
+- **AI-Powered Analysis**: Integrate with Dust AI for intelligent insights
+- **Full Analysis Pipeline**: One-command execution of the complete workflow
 - **Detailed Analysis**: Generate insights on:
   - Commit patterns and frequency
   - Pull request behavior and merge rates
-  - Code review participation
+  - Code review participation (with comment bodies)
   - Issue engagement
   - Collaboration metrics
   - Productivity trends
@@ -39,15 +44,21 @@ A Ruby application to analyze developer contributions in your GitHub organizatio
    export GITHUB_ORG="WTTJ"  # Optional, defaults to WTTJ
    export DATA_DIRECTORY="/custom/path"  # Optional, defaults to ./data
    export DISABLE_SLEEP="true"  # Optional, disable rate limit sleep delays (use with caution)
+   
+   # For AI analysis (optional)
+   export DUST_API_KEY="your_dust_api_key"
+   export DUST_WORKSPACE_ID="your_workspace_id"
+   export DUST_AGENT_ID="your_agent_id"
    ```
 
    To create a GitHub token:
    - Go to GitHub Settings > Developer settings > Personal access tokens
    - Generate a new token with `repo` and `read:org` scopes
 
-3. **Make the executable runnable**:
+3. **Make the executables runnable**:
    ```bash
    chmod +x bin/ic_metrics
+   chmod +x bin/ic_metrics_full_analysis
    ```
 
 ## Usage
@@ -59,6 +70,45 @@ ruby bin/ic_metrics collect john.doe
 
 # Collect data since a specific date
 ruby bin/ic_metrics collect john.doe --since=2024-01-01
+
+# Collect data for a specific time period
+ruby bin/ic_metrics collect john.doe --since=2024-01-01 --until=2024-06-30
+```
+
+### Export Data
+```bash
+# Export basic CSV files
+ruby bin/ic_metrics export john.doe
+
+# Export enhanced commits with additional metrics
+ruby bin/ic_metrics export-advanced enhanced john.doe
+
+# Export activity timeline
+ruby bin/ic_metrics export-advanced timeline john.doe
+
+# Export analysis JSON
+ruby bin/ic_metrics export-advanced analysis john.doe
+
+# Export merged CSV with all data combined
+ruby bin/ic_metrics export-advanced merged john.doe
+```
+
+### AI Analysis
+```bash
+# Analyze CSV exports using Dust AI (requires DUST_API_KEY, DUST_WORKSPACE_ID, DUST_AGENT_ID)
+ruby bin/ic_metrics analyze-csv john.doe
+```
+
+### Full Analysis Pipeline
+```bash
+# Run the complete analysis pipeline (collect → export → AI analysis)
+./bin/ic_metrics_full_analysis john.doe
+
+# With date range
+./bin/ic_metrics_full_analysis john.doe --since=2024-01-01 --until=2024-06-30
+
+# Short flags
+./bin/ic_metrics_full_analysis john.doe -s 2024-01-01 -u 2024-06-30
 ```
 
 ### Analyze Data
@@ -88,13 +138,25 @@ The tool stores data in the `./data` directory:
 ```
 data/
 ├── john.doe/
-│   ├── contributions.json  # Raw contribution data
-│   ├── analysis.json      # Detailed analysis results
-│   └── report.md          # Human-readable report
+│   ├── contributions.json       # Raw contribution data from GitHub API
+│   ├── analysis.json            # Detailed analysis results
+│   ├── report.md                # Human-readable report
+│   ├── activity_timeline.csv    # Chronological activity log
+│   ├── all_contributions.csv    # All contributions merged
+│   ├── text_content_analysis.csv # Analysis of written content
+│   ├── AI_ANALYSIS_john.doe.md  # AI-generated analysis report
+│   └── csv_exports/
+│       ├── commits.csv          # Commit details with stats
+│       ├── commits_enhanced.csv # Enhanced commit metrics
+│       ├── pull_requests.csv    # PR details
+│       ├── reviews.csv          # Code review details with comments
+│       ├── issues.csv           # Issue details
+│       ├── pr_comments.csv      # PR inline comments
+│       ├── issue_comments.csv   # Issue discussion comments
+│       ├── summary.csv          # Summary statistics
+│       └── text_content_analysis.csv
 └── jane.smith/
-    ├── contributions.json
-    ├── analysis.json
-    └── report.md
+    └── ...
 ```
 
 ## Analysis Metrics
@@ -156,7 +218,7 @@ The tool handles common scenarios gracefully:
 
 ## Privacy and Data
 
-- All data is stored locally in JSON format
-- No data is transmitted to external services beyond GitHub API
+- All data is stored locally in JSON and CSV formats
+- AI analysis via Dust is optional (requires `DUST_API_KEY`, `DUST_WORKSPACE_ID`, `DUST_AGENT_ID`)
 - Raw GitHub API responses are preserved for audit trails
-- Analysis can be run offline once data is collected
+- Local analysis can be run offline once data is collected

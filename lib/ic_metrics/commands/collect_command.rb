@@ -12,22 +12,26 @@ module IcMetrics
 
       def run
         username = @args.first
-        since_date = parse_since_date
+        date_range = parse_date_range
 
         puts "Starting data collection for #{username}..."
-        DataCollector.new(@config).collect_developer_data(username, since: since_date)
+        DataCollector.new(@config).collect_developer_data(
+          username,
+          since: date_range[:since],
+          until_date: date_range[:until]
+        )
       end
 
       private
 
-      def parse_since_date
-        Utils::SinceParser.new(@args).parse
+      def parse_date_range
+        Utils::SinceParser.new(@args).parse_range
       rescue InvalidDateFormatError => e
         abort_with_error(e.message, usage_message)
       end
 
       def usage_message
-        "Usage: ruby bin/ic_metrics collect <username> [--since=YYYY-MM-DD]"
+        "Usage: ruby bin/ic_metrics collect <username> [--since=YYYY-MM-DD] [--until=YYYY-MM-DD]"
       end
     end
   end

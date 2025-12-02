@@ -14,8 +14,9 @@ module IcMetrics
     end
 
     # Collect all contribution data for a developer
-    def collect_developer_data(username, since: nil)
+    def collect_developer_data(username, since: nil, until_date: nil)
       puts "Collecting data for developer: #{username}"
+      print_date_range(since, until_date)
       
       developer_dir = ensure_developer_directory(username)
       repositories = fetch_repositories_for_user(username, since)
@@ -24,7 +25,7 @@ module IcMetrics
       
       puts "Found #{repositories.size} repositories with contributions from #{username}"
       
-      build_contribution_data(username, repositories, since).tap do |data|
+      build_contribution_data(username, repositories, since, until_date).tap do |data|
         save_data(developer_dir, "contributions.json", data)
         print_summary(data[:summary])
       end
@@ -53,17 +54,27 @@ module IcMetrics
       puts "  - The username is incorrect"
     end
 
-    def build_contribution_data(username, repositories, since)
+    def print_date_range(since, until_date)
+      if since || until_date
+        range_parts = []
+        range_parts << "from #{since}" if since
+        range_parts << "until #{until_date}" if until_date
+        puts "Date range: #{range_parts.join(' ')}"
+      end
+    end
+
+    def build_contribution_data(username, repositories, since, until_date = nil)
       {
         developer: username,
         organization: @config.organization,
         collected_at: Time.now.iso8601,
-        repositories: collect_all_repository_data(repositories, username, since),
+        date_range: { since: since&.to_s, until: until_date&.to_s },
+        repositories: collect_all_repository_data(repositories, username, since, until_date),
         summary: initialize_summary
       }.tap { |data| calculate_summary_totals(data) }
     end
 
-    def collect_all_repository_data(repositories, username, since)
+    def collect_all_repository_data(repositories, username, since, until_date = nil)
       puts "\nStarting data collection for #{repositories.size} repositories..."
       
       repo_data = {}
@@ -76,7 +87,7 @@ module IcMetrics
         puts "\n🔄 [#{current}/#{total}] Processing: #{repo_name}"
         
         begin
-          data = collect_repository_data(repo_name, username, since)
+          data = collect_repository_data(repo_name, username, since, until_date)
           repo_data[repo_name] = data
           
           summary = summarize_repo_data(data)
@@ -137,12 +148,13 @@ module IcMetrics
       puts "  - Total issue comments: #{summary[:total_issue_comments]}"
     end
 
-    def collect_repository_data(repo_name, username, since)
+    def collect_repository_data(repo_name, username, since, until_date = nil)
       repository = Models::RepositoryData.new(
         repo_name: repo_name,
         username: username,
         client: @client,
         since: since,
+        until_date: until_date,
         quiet: false
       )
       repository.collect

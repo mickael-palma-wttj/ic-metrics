@@ -4,11 +4,12 @@ module IcMetrics
   module Models
     # Value object for repository data collection
     class RepositoryData
-      def initialize(repo_name:, username:, client:, since: nil, quiet: false)
+      def initialize(repo_name:, username:, client:, since: nil, until_date: nil, quiet: false)
         @repo_name = repo_name
         @username = username
         @client = client
         @since = since
+        @until_date = until_date
         @pull_requests = nil
         @quiet = quiet
       end
@@ -29,10 +30,38 @@ module IcMetrics
         # Reviews depend on pull_requests, so fetch after PRs are ready
         results[:reviews] = fetch_reviews_with_prs(results[:pull_requests])
         
-        results
+        # Apply until_date filter to all results
+        filter_results_by_until_date(results)
       end
 
       private
+
+      def filter_results_by_until_date(results)
+        return results unless @until_date
+
+        {
+          commits: filter_commits(results[:commits]),
+          pull_requests: filter_by_date(results[:pull_requests], "created_at"),
+          issues: filter_by_date(results[:issues], "created_at"),
+          reviews: filter_by_date(results[:reviews], "submitted_at"),
+          pr_comments: filter_by_date(results[:pr_comments], "created_at"),
+          issue_comments: filter_by_date(results[:issue_comments], "created_at")
+        }
+      end
+
+      def filter_commits(commits)
+        commits.select do |commit|
+          date = commit.dig("commit", "author", "date")
+          date && within_date_range?(date)
+        end
+      end
+
+      def filter_by_date(items, date_field)
+        items.select do |item|
+          date = item[date_field]
+          date && within_date_range?(date)
+        end
+      end
 
       def fetch_commits_async
         Concurrent::Future.execute { fetch_commits }
@@ -113,7 +142,7 @@ module IcMetrics
       end
 
       def within_date_range?(timestamp)
-        Utils::DateFilter.within_range?(timestamp, @since)
+        Utils::DateFilter.within_range?(timestamp, @since, @until_date)
       end
 
       def log_and_fetch(resource_name)
