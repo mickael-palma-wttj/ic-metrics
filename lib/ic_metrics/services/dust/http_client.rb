@@ -6,6 +6,8 @@ module IcMetrics
       # Encapsulates HTTP communication with Dust API
       class HttpClient
         BASE_URL = "https://dust.tt/api/v1"
+        MAX_RETRIES = 3
+        RETRY_DELAY = 2
 
         def initialize(api_key, workspace_id)
           @api_key = api_key
@@ -33,7 +35,7 @@ module IcMetrics
         def make_request(method, endpoint, body = nil)
           uri = URI.parse("#{BASE_URL}/w/#{@workspace_id}/#{endpoint}")
           request = build_request(method, uri, body)
-          execute_request(uri, request)
+          execute_with_retry(uri, request)
         end
 
         def build_request(method, uri, body)
@@ -45,8 +47,29 @@ module IcMetrics
           request
         end
 
+        def execute_with_retry(uri, request)
+          retries = 0
+          begin
+            execute_request(uri, request)
+          rescue Errno::ECONNRESET, OpenSSL::SSL::SSLError, Net::OpenTimeout, Net::ReadTimeout => e
+            retries += 1
+            if retries <= MAX_RETRIES
+              puts "  ⚠️  Connection error (attempt #{retries}/#{MAX_RETRIES}): #{e.message}"
+              puts "  ⏳ Retrying in #{RETRY_DELAY * retries} seconds..."
+              sleep(RETRY_DELAY * retries)
+              retry
+            else
+              raise e
+            end
+          end
+        end
+
         def execute_request(uri, request)
-          Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |http| http.request(request) }
+          http = Net::HTTP.new(uri.hostname, uri.port)
+          http.use_ssl = true
+          http.open_timeout = 30
+          http.read_timeout = 120
+          http.request(request)
         end
       end
     end
