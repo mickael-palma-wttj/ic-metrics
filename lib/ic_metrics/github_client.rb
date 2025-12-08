@@ -3,23 +3,26 @@
 module IcMetrics
   # GitHub API client for fetching contribution data
   class GithubClient
-    BASE_URL = 'https://api.github.com'
     PAGINATION_PER_PAGE = 100
-    RATE_LIMIT_DELAY = 0.1
-    SEARCH_RATE_LIMIT_DELAY = 1
     SECONDS_PER_DAY = 86_400 # 24 * 60 * 60
+
+    attr_reader :organization
 
     def initialize(config)
       @token = config.github_token
       @organization = config.organization
-      @disable_sleep = ENV['DISABLE_SLEEP'] == 'true'
+      @http_client = Services::HttpClient.new(@token)
+      @rate_limiter = Services::RateLimiter.standard
+      @search_rate_limiter = Services::RateLimiter.search
+      @paginated_request = Services::PaginatedRequest.new(@http_client, @rate_limiter)
+      @query_builder = Utils::GithubQueryBuilder.new(@organization)
     end
 
     # Make a request and return parsed JSON (public for service use)
     # @param endpoint [String] API endpoint
     # @return [Hash] Parsed JSON response
     def request(endpoint)
-      response = make_request(endpoint)
+      response = @http_client.get(endpoint)
       JSON.parse(response.body)
     end
 
@@ -30,58 +33,29 @@ module IcMetrics
 
     # Fetch repositories where a specific user has contributed
     def fetch_user_repositories(username, since: nil)
-      puts "Searching for repositories with contributions from #{username}..."
-
-      date_filter = build_date_filter(since)
-
-      # Collect all repository sources
-      repo_collections = [
-        search_author_repositories(username, date_filter),
-        search_pr_repositories(username, date_filter),
-        search_issue_repositories(username, date_filter),
-        fetch_reviewed_repositories(username, since),
-        fetch_commented_pr_repositories(username, since),
-        fetch_commented_issue_repositories(username, since),
-        fetch_user_activity_repositories(username)
-      ]
-
-      # Combine and deduplicate
-      all_repos = repo_collections.flatten.uniq { |repo| repo['id'] }
-
-      puts "Found #{all_repos.size} total repositories with contributions from #{username}"
-      all_repos
+      repository_aggregator.aggregate_user_repositories(username, since)
     end
 
     # Search repositories using GitHub search API
     def search_repositories(query)
       results = []
       page = 1
+      max_results = 1000
 
       loop do
-        encoded_query = URI.encode_www_form_component(query)
-        endpoint = "/search/repositories?q=#{encoded_query}&page=#{page}&per_page=100"
-
-        response = make_request(endpoint)
-        data = JSON.parse(response.body)
-
+        data = fetch_search_page(query, page)
         break if data['items'].nil? || data['items'].empty?
 
         results.concat(data['items'])
-
-        # GitHub search API has a limit of 1000 results
-        break if results.size >= data['total_count'] || results.size >= 1000
+        break if results.size >= data['total_count'] || results.size >= max_results
 
         page += 1
-
-        # Respect rate limits - search API has stricter limits
-        sleep(SEARCH_RATE_LIMIT_DELAY) unless @disable_sleep
+        @search_rate_limiter.wait
       end
 
       results
     rescue Error => e
-      puts "Warning: Repository search failed - #{e.message}"
-      puts 'Falling back to fetching all organization repositories'
-      fetch_repositories
+      handle_search_error(e)
     end
 
     # Get repositories where user has been active (alternative approach using events API)
@@ -101,7 +75,7 @@ module IcMetrics
       # Fetch repository details for each found repo
       repositories = []
       repo_names.each do |repo_name|
-        repo_data = JSON.parse(make_request("/repos/#{@organization}/#{repo_name}").body)
+        repo_data = request("/repos/#{@organization}/#{repo_name}")
         repositories << repo_data
       rescue Error => e
         puts "Warning: Could not fetch details for repository #{repo_name}: #{e.message}"
@@ -123,7 +97,7 @@ module IcMetrics
 
       # Enrich commits with detailed stats (additions, deletions)
       commits.each do |commit|
-        commit_detail = get("/repos/#{@organization}/#{repo_name}/commits/#{commit['sha']}")
+        commit_detail = request("/repos/#{@organization}/#{repo_name}/commits/#{commit['sha']}")
         commit['stats'] = commit_detail['stats'] if commit_detail && commit_detail['stats']
       rescue StandardError
         # If we can't fetch detailed stats, just use empty stats
@@ -158,25 +132,9 @@ module IcMetrics
     # Fetch reviews for a specific pull request
     def fetch_reviews(repo_name, pr_number)
       reviews = get_paginated("/repos/#{@organization}/#{repo_name}/pulls/#{pr_number}/reviews")
+      comments = get_paginated("/repos/#{@organization}/#{repo_name}/pulls/#{pr_number}/comments")
 
-      # For COMMENTED reviews with empty body, fetch actual comments
-      reviews_needing_comments = reviews.select { |r| r['body'].to_s.strip.empty? && r['state'] == 'COMMENTED' }
-
-      if reviews_needing_comments.any?
-        # Fetch all comments once
-        all_comments = get_paginated("/repos/#{@organization}/#{repo_name}/pulls/#{pr_number}/comments")
-
-        # Create a map of review_id => comments
-        comments_by_review = all_comments.group_by { |c| c['pull_request_review_id'] }
-
-        # Enrich reviews with comment bodies
-        reviews_needing_comments.each do |review|
-          comments = comments_by_review[review['id']] || []
-          review['body'] = comments.filter_map { |c| c['body'] }.join("\n---\n") if comments.any?
-        end
-      end
-
-      reviews
+      Models::ReviewEnricher.new(reviews, comments).enrich
     end
 
     # Fetch review comments for a specific pull request
@@ -186,21 +144,21 @@ module IcMetrics
 
     # Search for pull requests where the user was a reviewer
     def search_reviewed_prs(username, since: nil)
-      query = build_search_query(username, since, type: 'pr', filter: 'reviewed-by')
+      query = @query_builder.for_user_activity(username, since: since, type: 'pr', filter: 'reviewed-by')
       results = search_service.search_paged(query)
       extract_repository_names(results, username, 'reviewed PRs')
     end
 
     # Search for pull requests where the user has commented
     def search_commented_prs(username, since: nil)
-      query = build_search_query(username, since, type: 'pr', filter: 'commenter')
+      query = @query_builder.for_user_activity(username, since: since, type: 'pr', filter: 'commenter')
       results = search_service.search_paged(query)
       extract_repository_names(results, username, 'commented on PRs')
     end
 
     # Search for issues where the user has commented
     def search_commented_issues(username, since: nil)
-      query = build_search_query(username, since, type: 'issue', filter: 'commenter')
+      query = @query_builder.for_user_activity(username, since: since, type: 'issue', filter: 'commenter')
       results = search_service.search_paged(query)
       extract_repository_names(results, username, 'commented on issues')
     end
@@ -234,41 +192,20 @@ module IcMetrics
       @search_service ||= Services::GithubSearchService.new(self)
     end
 
-    def build_date_filter(since)
-      since ? " created:>=#{Utils::DateFilter.format_for_search(since)}" : ''
+    def repository_aggregator
+      @repository_aggregator ||= Services::RepositoryAggregator.new(self, @query_builder)
     end
 
-    def search_author_repositories(username, date_filter)
-      search_repositories("org:#{@organization} author:#{username}#{date_filter}")
+    def fetch_search_page(query, page)
+      encoded_query = URI.encode_www_form_component(query)
+      endpoint = "/search/repositories?q=#{encoded_query}&page=#{page}&per_page=100"
+      request(endpoint)
     end
 
-    def search_pr_repositories(username, date_filter)
-      search_repositories("org:#{@organization} author:#{username} type:pr#{date_filter}")
-    end
-
-    def search_issue_repositories(username, date_filter)
-      search_repositories("org:#{@organization} author:#{username} type:issue#{date_filter}")
-    end
-
-    def fetch_reviewed_repositories(username, since)
-      repo_names = search_reviewed_prs(username, since: since)
-      fetch_repository_details(repo_names)
-    end
-
-    def fetch_commented_pr_repositories(username, since)
-      repo_names = search_commented_prs(username, since: since)
-      fetch_repository_details(repo_names)
-    end
-
-    def fetch_commented_issue_repositories(username, since)
-      repo_names = search_commented_issues(username, since: since)
-      fetch_repository_details(repo_names)
-    end
-
-    def build_search_query(username, since, type:, filter:)
-      query_parts = ["org:#{@organization}", "#{filter}:#{username}", "type:#{type}"]
-      query_parts << "created:>=#{Utils::DateFilter.format_for_search(since)}" if since
-      query_parts.join(' ')
+    def handle_search_error(error)
+      puts "Warning: Repository search failed - #{error.message}"
+      puts 'Falling back to fetching all organization repositories'
+      fetch_repositories
     end
 
     def extract_repository_names(results, username, context)
@@ -283,89 +220,14 @@ module IcMetrics
       []
     end
 
-    def fetch_repository_details(repo_names)
-      repo_names.uniq.filter_map do |repo_name|
-        request("/repos/#{@organization}/#{repo_name}")
-      rescue Error => e
-        puts "Warning: Could not fetch details for repository #{repo_name}: #{e.message}"
-        nil
-      end
-    end
-
     def filter_comments_by_user_and_date(comments, username, since)
       comments
         .select { |comment| comment['user']['login'] == username }
         .select { |comment| Utils::DateFilter.within_range?(comment['created_at'], since) }
     end
 
-    def get(endpoint)
-      response = make_request(endpoint)
-      JSON.parse(response.body)
-    end
-
-    def get_paginated(endpoint, page: 1, per_page: PAGINATION_PER_PAGE)
-      results = []
-
-      loop do
-        separator = endpoint.include?('?') ? '&' : '?'
-        url = "#{endpoint}#{separator}page=#{page}&per_page=#{per_page}"
-
-        response = make_request(url)
-        data = JSON.parse(response.body)
-
-        break if data.empty?
-
-        results.concat(data)
-        page += 1
-
-        # Respect rate limits
-        sleep(RATE_LIMIT_DELAY) unless @disable_sleep
-      end
-
-      results
-    end
-
-    def make_request(endpoint)
-      uri = URI("#{BASE_URL}#{endpoint}")
-
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = true
-
-      request = Net::HTTP::Get.new(uri)
-      request['Authorization'] = "token #{@token}"
-      request['Accept'] = 'application/vnd.github.v3+json'
-      request['User-Agent'] = 'IcMetrics/1.0'
-
-      response = http.request(request)
-
-      case response.code
-      when '200'
-        response
-      when '404'
-        raise Errors::ResourceNotFoundError.new(
-          'Resource not found',
-          status_code: 404,
-          endpoint: endpoint
-        )
-      when '403'
-        raise Errors::RateLimitError.new(
-          'Rate limit exceeded or insufficient permissions',
-          status_code: 403,
-          endpoint: endpoint
-        )
-      when '401'
-        raise Errors::AuthenticationError.new(
-          'Invalid GitHub token',
-          status_code: 401,
-          endpoint: endpoint
-        )
-      else
-        raise Errors::ApiError.new(
-          "GitHub API error: #{response.body}",
-          status_code: response.code.to_i,
-          endpoint: endpoint
-        )
-      end
+    def get_paginated(endpoint, per_page: PAGINATION_PER_PAGE)
+      @paginated_request.fetch_all(endpoint, per_page: per_page)
     end
   end
 end

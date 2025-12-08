@@ -5,6 +5,7 @@ source 'https://rubygems.org'
 ruby '~> 3.0'
 
 gem 'concurrent-ruby', '~> 1.2'
+gem 'csv', '~> 3.1'
 gem 'dotenv', '~> 2.8'
 gem 'json', '~> 2.6'
 gem 'net-http', '~> 0.4.0'

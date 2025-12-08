@@ -16,7 +16,7 @@ RSpec.describe IcMetrics::GithubClient do
     it 'stores config values' do
       # Verify
       expect(client.instance_variable_get(:@token)).to eq('test_token')
-      expect(client.instance_variable_get(:@organization)).to eq('test-org')
+      expect(client.organization).to eq('test-org')
     end
 
     context 'when DISABLE_SLEEP is set' do
@@ -28,12 +28,13 @@ RSpec.describe IcMetrics::GithubClient do
         ENV.delete('DISABLE_SLEEP')
       end
 
-      it 'sets disable_sleep flag' do
+      it 'creates rate limiter with disabled flag' do
         # Exercise
         new_client = described_class.new(config)
 
         # Verify
-        expect(new_client.instance_variable_get(:@disable_sleep)).to be true
+        rate_limiter = new_client.instance_variable_get(:@rate_limiter)
+        expect(rate_limiter.instance_variable_get(:@disabled)).to be true
       end
     end
   end
@@ -42,19 +43,23 @@ RSpec.describe IcMetrics::GithubClient do
     let(:endpoint) { '/test/endpoint' }
     let(:response_body) { '{"data": "value"}' }
     let(:response) { instance_double(Net::HTTPResponse, body: response_body, code: '200') }
+    let(:http_client) { instance_double(IcMetrics::Services::HttpClient) }
 
     before do
-      allow(client).to receive(:make_request).with(endpoint).and_return(response)
+      allow(IcMetrics::Services::HttpClient).to receive(:new).and_return(http_client)
+      allow(http_client).to receive(:get).with(endpoint).and_return(response)
+      # Recreate client with mocked http_client
+      @test_client = described_class.new(config)
     end
 
     it 'makes request and parses JSON response' do
       # Exercise
-      result = client.request(endpoint)
+      result = @test_client.request(endpoint)
 
       # Verify
       aggregate_failures do
         expect(result).to eq({ 'data' => 'value' })
-        expect(client).to have_received(:make_request).with(endpoint)
+        expect(http_client).to have_received(:get).with(endpoint)
       end
     end
   end
@@ -81,47 +86,36 @@ RSpec.describe IcMetrics::GithubClient do
   describe '#fetch_user_repositories' do
     let(:username) { 'testuser' }
     let(:repos) { [{ 'id' => 1, 'name' => 'repo1' }] }
+    let(:repository_aggregator) { instance_double(IcMetrics::Services::RepositoryAggregator) }
 
     before do
-      allow(client).to receive(:search_author_repositories).and_return(repos)
-      allow(client).to receive(:search_pr_repositories).and_return([])
-      allow(client).to receive(:search_issue_repositories).and_return([])
-      allow(client).to receive(:fetch_reviewed_repositories).and_return([])
-      allow(client).to receive(:fetch_commented_pr_repositories).and_return([])
-      allow(client).to receive(:fetch_commented_issue_repositories).and_return([])
-      allow(client).to receive(:fetch_user_activity_repositories).and_return([])
+      allow(IcMetrics::Services::RepositoryAggregator).to receive(:new).and_return(repository_aggregator)
+      allow(repository_aggregator).to receive(:aggregate_user_repositories).and_return(repos)
       allow($stdout).to receive(:puts)
     end
 
-    it 'collects repositories from multiple sources' do
+    it 'delegates to repository aggregator' do
       # Exercise
       result = client.fetch_user_repositories(username)
 
       # Verify
-      expect(result).to eq(repos)
-    end
-
-    it 'deduplicates repositories by id' do
-      # Setup
-      duplicate_repos = [{ 'id' => 1, 'name' => 'repo1' }, { 'id' => 1, 'name' => 'repo1' }]
-      allow(client).to receive(:search_author_repositories).and_return(duplicate_repos)
-
-      # Exercise
-      result = client.fetch_user_repositories(username)
-
-      # Verify
-      expect(result.size).to eq(1)
+      aggregate_failures do
+        expect(result).to eq(repos)
+        expect(repository_aggregator).to have_received(:aggregate_user_repositories)
+          .with(username, nil)
+      end
     end
 
     context 'with since parameter' do
-      let(:since_date) { '2025-01-01' }
+      let(:since_date) { Date.new(2025, 1, 1) }
 
-      it 'passes since date to search methods' do
+      it 'passes since date to aggregator' do
         # Exercise
         client.fetch_user_repositories(username, since: since_date)
 
         # Verify
-        expect(client).to have_received(:fetch_reviewed_repositories).with(username, since_date)
+        expect(repository_aggregator).to have_received(:aggregate_user_repositories)
+          .with(username, since_date)
       end
     end
   end
