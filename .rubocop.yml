@@ -1,13 +1,79 @@
 # frozen_string_literal: true
 
 plugins:
-  - rubocop-performance
   - rubocop-rspec
 
 AllCops:
   NewCops: enable
-  TargetRubyVersion: 3.2
+  TargetRubyVersion: 3.0
   SuggestExtensions: false
   Exclude:
+    - 'bin/**/*'
+    - 'data/**/*'
+    - 'coverage/**/*'
     - 'vendor/**/*'
     - 'tmp/**/*'
+
+# Metrics
+Metrics/ClassLength:
+  Max: 300
+
+Metrics/ModuleLength:
+  Max: 300
+
+Metrics/MethodLength:
+  Max: 40
+
+Metrics/AbcSize:
+  Max: 55
+
+Metrics/CyclomaticComplexity:
+  Max: 15
+
+Metrics/PerceivedComplexity:
+  Max: 15
+
+Metrics/BlockLength:
+  Max: 30
+  Exclude:
+    - 'spec/**/*'
+
+Metrics/ParameterLists:
+  Max: 6
+
+# Style
+Style/Documentation:
+  Enabled: false
+
+Style/SafeNavigationChainLength:
+  Enabled: false
+
+Style/MultilineBlockChain:
+  Enabled: false
+
+# Naming
+Naming/MethodParameterName:
+  MinNameLength: 2
+  AllowedNames:
+    - pr
+    - id
+
+Naming/PredicatePrefix:
+  AllowedMethods:
+    - has_code_blocks?
+    - has_links?
+    - has_mentions?
+
+# Lint
+Lint/DuplicateBranch:
+  Enabled: false
+
+# RSpec
+RSpec/NestedGroups:
+  Max: 5
+
+RSpec/ExampleLength:
+  Max: 10
+
+RSpec/MultipleExpectations:
+  Max: 5
