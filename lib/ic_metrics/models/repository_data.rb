@@ -146,17 +146,29 @@ module IcMetrics
       end
 
       def log_and_fetch(resource_name)
-        puts "  ⏳ Fetching #{resource_name}..." unless @quiet
+        log_fetching(resource_name)
 
         result = yield
 
-        count = result.is_a?(Array) ? result.size : 0
-        puts "  ✓ Fetched #{count} #{resource_name}" unless @quiet
+        log_fetched(resource_name, result)
 
         result
       rescue IcMetrics::Error => e
-        puts "  ⚠️  Warning: #{e.message}" unless @quiet
+        log_warning(e.message)
         []
+      end
+
+      def log_fetching(resource_name)
+        puts "  ⏳ Fetching #{resource_name}..." unless @quiet
+      end
+
+      def log_fetched(resource_name, result)
+        count = result.is_a?(Array) ? result.size : 0
+        puts "  ✓ Fetched #{count} #{resource_name}" unless @quiet
+      end
+
+      def log_warning(message)
+        puts "  ⚠️  Warning: #{message}" unless @quiet
       end
     end
   end

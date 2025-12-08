@@ -57,6 +57,10 @@ module IcMetrics
         end
       end
 
+      def valid_username?(username)
+        !username.nil? && !username.empty?
+      end
+
       def load_data(username)
         file = File.join(@config.data_directory, username, 'contributions.json')
 
@@ -70,7 +74,7 @@ module IcMetrics
       end
 
       def export_enhanced(username, output_dir)
-        return show_help unless username
+        return show_help unless valid_username?(username)
 
         data = load_data(username)
         output_dir ||= File.join(@config.data_directory, username, 'csv_exports')
@@ -85,7 +89,7 @@ module IcMetrics
       end
 
       def export_timeline(username, output_file)
-        return show_help unless username
+        return show_help unless valid_username?(username)
 
         data = load_data(username)
         output_file ||= File.join(@config.data_directory, username, 'activity_timeline.csv')
@@ -111,7 +115,7 @@ module IcMetrics
       end
 
       def export_analysis(username, output_file)
-        return show_help unless username
+        return show_help unless valid_username?(username)
 
         data = load_data(username)
         output_file ||= File.join(@config.data_directory, username, 'text_analysis.csv')
@@ -124,7 +128,7 @@ module IcMetrics
       end
 
       def export_merged(username, output_file)
-        return show_help unless username
+        return show_help unless valid_username?(username)
 
         data = load_data(username)
         output_file ||= File.join(@config.data_directory, username, 'all_contributions.csv')

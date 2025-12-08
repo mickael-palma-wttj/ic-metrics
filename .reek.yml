@@ -41,6 +41,9 @@ detectors:
   DuplicateMethodCall:
     max_calls: 4
   
+  RepeatedConditional:
+    max_ifs: 5
+  
   NilCheck:
     enabled: false
   
