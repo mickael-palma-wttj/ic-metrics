@@ -9,7 +9,7 @@ module IcMetrics
       @config = config
       @client = GithubClient.new(config)
       @data_dir = config.data_directory
-      @max_workers = (ENV["MAX_PARALLEL_WORKERS"] || DEFAULT_MAX_PARALLEL_REQUESTS).to_i
+      @max_workers = (ENV['MAX_PARALLEL_WORKERS'] || DEFAULT_MAX_PARALLEL_REQUESTS).to_i
       @thread_pool = Concurrent::FixedThreadPool.new(@max_workers)
     end
 
@@ -17,16 +17,16 @@ module IcMetrics
     def collect_developer_data(username, since: nil, until_date: nil)
       puts "Collecting data for developer: #{username}"
       print_date_range(since, until_date)
-      
+
       developer_dir = ensure_developer_directory(username)
       repositories = fetch_repositories_for_user(username, since)
-      
+
       return create_empty_data_structure(username) if repositories.empty?
-      
+
       puts "Found #{repositories.size} repositories with contributions from #{username}"
-      
+
       build_contribution_data(username, repositories, since, until_date).tap do |data|
-        save_data(developer_dir, "contributions.json", data)
+        save_data(developer_dir, 'contributions.json', data)
         print_summary(data[:summary])
       end
     end
@@ -35,7 +35,7 @@ module IcMetrics
 
     def ensure_developer_directory(username)
       File.join(@data_dir, username).tap do |dir|
-        FileUtils.mkdir_p(dir) unless Dir.exist?(dir)
+        FileUtils.mkdir_p(dir)
       end
     end
 
@@ -48,19 +48,19 @@ module IcMetrics
 
     def warn_if_no_repositories(username)
       puts "No repositories found with contributions from #{username}"
-      puts "This could mean:"
+      puts 'This could mean:'
       puts "  - The user hasn't contributed to any repositories in #{@config.organization}"
       puts "  - The user's contributions are in private repositories you don't have access to"
-      puts "  - The username is incorrect"
+      puts '  - The username is incorrect'
     end
 
     def print_date_range(since, until_date)
-      if since || until_date
-        range_parts = []
-        range_parts << "from #{since}" if since
-        range_parts << "until #{until_date}" if until_date
-        puts "Date range: #{range_parts.join(' ')}"
-      end
+      return unless since || until_date
+
+      range_parts = []
+      range_parts << "from #{since}" if since
+      range_parts << "until #{until_date}" if until_date
+      puts "Date range: #{range_parts.join(' ')}"
     end
 
     def build_contribution_data(username, repositories, since, until_date = nil)
@@ -76,32 +76,32 @@ module IcMetrics
 
     def collect_all_repository_data(repositories, username, since, until_date = nil)
       puts "\nStarting data collection for #{repositories.size} repositories..."
-      
+
       repo_data = {}
-      
+
       repositories.each_with_index do |repo, index|
-        repo_name = repo["name"]
+        repo_name = repo['name']
         current = index + 1
         total = repositories.size
-        
+
         puts "\n🔄 [#{current}/#{total}] Processing: #{repo_name}"
-        
+
         begin
           data = collect_repository_data(repo_name, username, since, until_date)
           repo_data[repo_name] = data
-          
+
           summary = summarize_repo_data(data)
           puts "✅ [#{current}/#{total}] Completed: #{repo_name} - #{summary}"
         rescue StandardError => e
           puts "❌ [#{current}/#{total}] Error: #{repo_name} - #{e.message}"
         end
       end
-      
+
       puts "\n✨ All repositories processed!\n"
-      
+
       repo_data
     end
-    
+
     def summarize_repo_data(data)
       parts = []
       parts << "#{data[:commits].size} commits" if data[:commits].any?
@@ -110,10 +110,8 @@ module IcMetrics
       parts << "#{data[:issues].size} issues" if data[:issues].any?
       parts << "#{data[:pr_comments].size} PR comments" if data[:pr_comments].any?
       parts << "#{data[:issue_comments].size} issue comments" if data[:issue_comments].any?
-      parts.empty? ? "no activity" : parts.join(", ")
+      parts.empty? ? 'no activity' : parts.join(', ')
     end
-    
-
 
     def initialize_summary
       {
@@ -138,8 +136,8 @@ module IcMetrics
     end
 
     def print_summary(summary)
-      puts "Data collection completed!"
-      puts "Summary:"
+      puts 'Data collection completed!'
+      puts 'Summary:'
       puts "  - Total commits: #{summary[:total_commits]}"
       puts "  - Total PRs: #{summary[:total_prs]}"
       puts "  - Total reviews: #{summary[:total_reviews]}"

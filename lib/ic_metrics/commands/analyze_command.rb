@@ -7,7 +7,7 @@ module IcMetrics
       def validate!
         return if @args.any?
 
-        abort_with_error("Username is required", usage_message)
+        abort_with_error('Username is required', usage_message)
       end
 
       def run
@@ -20,7 +20,7 @@ module IcMetrics
       private
 
       def usage_message
-        "Usage: ruby bin/ic_metrics analyze <username>"
+        'Usage: ruby bin/ic_metrics analyze <username>'
       end
     end
   end

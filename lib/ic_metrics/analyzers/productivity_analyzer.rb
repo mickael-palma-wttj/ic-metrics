@@ -9,12 +9,12 @@ module IcMetrics
       end
 
       def analyze
-        all_commits = @repositories.values.flat_map { |repo| repo["commits"] }
-        all_prs = @repositories.values.flat_map { |repo| repo["pull_requests"] }
+        all_commits = @repositories.values.flat_map { |repo| repo['commits'] }
+        all_prs = @repositories.values.flat_map { |repo| repo['pull_requests'] }
 
         return default_metrics if all_commits.empty?
 
-        commit_dates = all_commits.map { |commit| Time.parse(commit.dig("commit", "author", "date")) }
+        commit_dates = all_commits.map { |commit| Time.parse(commit.dig('commit', 'author', 'date')) }
         time_range = calculate_time_range(commit_dates)
 
         {

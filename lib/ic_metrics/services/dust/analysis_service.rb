@@ -10,12 +10,12 @@ module IcMetrics
         end
 
         def analyze(request)
-          puts "Creating conversation with agent..."
+          puts 'Creating conversation with agent...'
 
           client = HttpClient.new(request.api_key, request.workspace_id)
           conversation_id = create_conversation(client, request)
 
-          puts "✓ Conversation created, waiting for response..."
+          puts '✓ Conversation created, waiting for response...'
           display_conversation_url(request.workspace_id, conversation_id)
 
           response = poll_response(client, conversation_id)
@@ -48,7 +48,7 @@ module IcMetrics
         def request_body(request, message_content)
           {
             title: "IC Metrics Analysis: #{request.username}",
-            visibility: "unlisted",
+            visibility: 'unlisted',
             message: {
               content: message_content,
               mentions: [{ configurationId: request.agent_id }],
@@ -59,8 +59,8 @@ module IcMetrics
 
         def message_context(username)
           {
-            origin: "api",
-            timezone: "UTC",
+            origin: 'api',
+            timezone: 'UTC',
             username: username,
             fullName: nil,
             email: nil,
@@ -70,15 +70,15 @@ module IcMetrics
 
         def extract_conversation_id(response)
           result = JSON.parse(response.body)
-          conversation_id = result.dig("conversation", "sId")
-          raise "Failed to create conversation" unless conversation_id
+          conversation_id = result.dig('conversation', 'sId')
+          raise 'Failed to create conversation' unless conversation_id
 
           conversation_id
         end
 
         def poll_response(client, conversation_id)
           poller = ResponsePoller.new(client, conversation_id)
-          puts "Polling for agent response..."
+          puts 'Polling for agent response...'
           poller.fetch_response
         end
 
@@ -97,7 +97,7 @@ module IcMetrics
           puts "Report saved to: #{output_file}"
           puts "\nYou can also view it locally with:"
           puts "  cat #{output_file}"
-          puts "  or open it in your editor"
+          puts '  or open it in your editor'
         end
 
         def build_result(content, workspace_id, conversation_id)

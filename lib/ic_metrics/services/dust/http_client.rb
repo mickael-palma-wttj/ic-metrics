@@ -5,7 +5,7 @@ module IcMetrics
     module Dust
       # Encapsulates HTTP communication with Dust API
       class HttpClient
-        BASE_URL = "https://dust.tt/api/v1"
+        BASE_URL = 'https://dust.tt/api/v1'
         MAX_RETRIES = 3
         RETRY_DELAY = 2
 
@@ -15,7 +15,7 @@ module IcMetrics
         end
 
         def create_conversation(request_body)
-          post("assistant/conversations", request_body)
+          post('assistant/conversations', request_body)
         end
 
         def get_conversation(conversation_id)
@@ -41,8 +41,8 @@ module IcMetrics
         def build_request(method, uri, body)
           request_class = Net::HTTP.const_get(method.capitalize.to_s)
           request = request_class.new(uri)
-          request["Authorization"] = "Bearer #{@api_key}"
-          request["Content-Type"] = "application/json"
+          request['Authorization'] = "Bearer #{@api_key}"
+          request['Content-Type'] = 'application/json'
           request.body = body if body
           request
         end
@@ -53,14 +53,12 @@ module IcMetrics
             execute_request(uri, request)
           rescue Errno::ECONNRESET, OpenSSL::SSL::SSLError, Net::OpenTimeout, Net::ReadTimeout => e
             retries += 1
-            if retries <= MAX_RETRIES
-              puts "  ⚠️  Connection error (attempt #{retries}/#{MAX_RETRIES}): #{e.message}"
-              puts "  ⏳ Retrying in #{RETRY_DELAY * retries} seconds..."
-              sleep(RETRY_DELAY * retries)
-              retry
-            else
-              raise e
-            end
+            raise e unless retries <= MAX_RETRIES
+
+            puts "  ⚠️  Connection error (attempt #{retries}/#{MAX_RETRIES}): #{e.message}"
+            puts "  ⏳ Retrying in #{RETRY_DELAY * retries} seconds..."
+            sleep(RETRY_DELAY * retries)
+            retry
           end
         end
 

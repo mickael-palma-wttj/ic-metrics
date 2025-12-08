@@ -12,14 +12,14 @@ module IcMetrics
       # @return [Date, nil] Parsed date or nil if not provided
       # @raise [InvalidDateFormatError] If date format is invalid
       def parse
-        parse_date("--since=")
+        parse_date('--since=')
       end
 
       # Parse the --until argument from command line arguments
       # @return [Date, nil] Parsed date or nil if not provided
       # @raise [InvalidDateFormatError] If date format is invalid
       def parse_until
-        parse_date("--until=")
+        parse_date('--until=')
       end
 
       # Parse both since and until dates
@@ -48,7 +48,7 @@ module IcMetrics
       end
 
       def extract_date_string(arg)
-        arg.split("=", 2).last
+        arg.split('=', 2).last
       end
     end
   end

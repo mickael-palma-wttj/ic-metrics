@@ -5,16 +5,16 @@ module IcMetrics
     # Registry of CSV files to be analyzed
     class CsvFileRegistry
       CSV_FILES = [
-        "commits.csv",
-        "commits_enhanced.csv",
-        "pull_requests.csv",
-        "reviews.csv",
-        "issues.csv",
-        "pr_comments.csv",
-        "issue_comments.csv",
-        "text_content_analysis.csv",
-        "activity_timeline.csv",
-        "summary.csv"
+        'commits.csv',
+        'commits_enhanced.csv',
+        'pull_requests.csv',
+        'reviews.csv',
+        'issues.csv',
+        'pr_comments.csv',
+        'issue_comments.csv',
+        'text_content_analysis.csv',
+        'activity_timeline.csv',
+        'summary.csv'
       ].freeze
 
       def self.files

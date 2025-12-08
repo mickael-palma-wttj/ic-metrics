@@ -24,7 +24,7 @@ module IcMetrics
       private
 
       def separator
-        "---"
+        '---'
       end
 
       def header

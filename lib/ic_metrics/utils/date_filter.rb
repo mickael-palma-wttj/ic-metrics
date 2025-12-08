@@ -8,7 +8,7 @@ module IcMetrics
       # @param date [Date, Time, String] The date to format
       # @return [String] Date in YYYY-MM-DD format
       def self.format_for_search(date)
-        normalize_date(date).strftime("%Y-%m-%d")
+        normalize_date(date).strftime('%Y-%m-%d')
       end
 
       # Check if a timestamp is within range of since/until dates

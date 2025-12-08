@@ -11,7 +11,7 @@ module IcMetrics
       TOP_ACTIVE_HOURS_COUNT = 3
 
       def initialize(repositories)
-        @commits = repositories.values.flat_map { |repo| repo["commits"] }
+        @commits = repositories.values.flat_map { |repo| repo['commits'] }
       end
 
       def analyze
@@ -29,7 +29,7 @@ module IcMetrics
       private
 
       def commit_dates
-        @commit_dates ||= @commits.map { |c| Time.parse(c.dig("commit", "author", "date")) }
+        @commit_dates ||= @commits.map { |c| Time.parse(c.dig('commit', 'author', 'date')) }
       end
 
       def average_per_day
@@ -46,7 +46,7 @@ module IcMetrics
       end
 
       def frequency_analysis
-        by_day = commit_dates.group_by { |date| date.strftime("%A") }
+        by_day = commit_dates.group_by { |date| date.strftime('%A') }
         by_hour = commit_dates.group_by(&:hour)
 
         {
@@ -65,7 +65,7 @@ module IcMetrics
       end
 
       def message_analysis
-        messages = @commits.map { |commit| commit.dig("commit", "message") }
+        messages = @commits.map { |commit| commit.dig('commit', 'message') }
         return default_message_analysis if messages.empty?
 
         conventional_count = messages.count { |msg| conventional_commit?(msg) }
@@ -82,7 +82,7 @@ module IcMetrics
       end
 
       def calculate_average_length(messages)
-        (messages.map(&:length).sum / messages.size.to_f).round(2)
+        (messages.sum(&:length) / messages.size.to_f).round(2)
       end
 
       def calculate_percentage(count, total)

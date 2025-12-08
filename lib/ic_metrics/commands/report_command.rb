@@ -19,26 +19,29 @@ module IcMetrics
       private
 
       def list_available_reports
-        puts "Available reports:"
+        puts 'Available reports:'
 
-        Dir.glob(File.join(@config.data_directory, "*")).each do |user_dir|
+        Dir.glob(File.join(@config.data_directory, '*')).each do |user_dir|
           next unless File.directory?(user_dir)
 
           username = File.basename(user_dir)
-          analysis_file = File.join(user_dir, "analysis.json")
+          analysis_file = File.join(user_dir, 'analysis.json')
 
           next unless File.exist?(analysis_file)
 
-          report_file = File.join(user_dir, "report.md")
-          status = File.exist?(report_file) ? "Report available" : "Analysis only"
+          report_file = File.join(user_dir, 'report.md')
+          status = File.exist?(report_file) ? 'Report available' : 'Analysis only'
           puts "  #{username} - #{status}"
         end
       end
 
       def show_report(username)
-        report_file = File.join(@config.data_directory, username, "report.md")
+        report_file = File.join(@config.data_directory, username, 'report.md')
 
-        raise Errors::DataNotFoundError, "No report found for #{username}. Run analysis first." unless File.exist?(report_file)
+        unless File.exist?(report_file)
+          raise Errors::DataNotFoundError,
+                "No report found for #{username}. Run analysis first."
+        end
 
         puts File.read(report_file)
       end

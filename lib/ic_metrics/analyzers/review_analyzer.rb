@@ -5,7 +5,7 @@ module IcMetrics
     # Analyzer for code review patterns
     class ReviewAnalyzer
       def initialize(repositories)
-        @reviews = repositories.values.flat_map { |repo| repo["reviews"] }
+        @reviews = repositories.values.flat_map { |repo| repo['reviews'] }
       end
 
       def analyze
@@ -21,11 +21,11 @@ module IcMetrics
       private
 
       def state_distribution
-        @reviews.group_by { |review| review["state"] }.transform_values(&:count)
+        @reviews.group_by { |review| review['state'] }.transform_values(&:count)
       end
 
       def average_per_day
-        review_dates = @reviews.map { |r| Time.parse(r["submitted_at"]) }
+        review_dates = @reviews.map { |r| Time.parse(r['submitted_at']) }
         return 0 if review_dates.empty?
 
         first_date = review_dates.min

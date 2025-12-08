@@ -39,7 +39,7 @@ module IcMetrics
             DUST_API_KEY            Dust AI API key (required for analyze-csv command)
             DUST_WORKSPACE_ID       Dust workspace ID (required for analyze-csv command)
             DUST_AGENT_ID           Dust agent configuration ID (required for analyze-csv command)
-            
+          #{'  '}
             You can set these in a .env file (recommended) or export them directly.
 
           EXAMPLES:

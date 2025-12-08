@@ -13,10 +13,8 @@ module IcMetrics
       def self.validate_csv_directory!(csv_dir)
         return if directory_exists_and_not_empty?(csv_dir)
 
-        raise CsvNotFoundError, "CSV exports not found. Run: ic_metrics export <username>"
+        raise CsvNotFoundError, 'CSV exports not found. Run: ic_metrics export <username>'
       end
-
-      private
 
       def self.credentials_present?
         %w[DUST_API_KEY DUST_WORKSPACE_ID DUST_AGENT_ID].all? { |key| ENV[key]&.strip&.length&.positive? }

@@ -46,26 +46,26 @@ module IcMetrics
         end
 
         def should_report_progress?
-          @attempt % 5 == 0
+          (@attempt % 5).zero?
         end
 
         def report_progress(agent_message)
           case agent_message.status
-          when "created"
+          when 'created'
             puts "\n⏳ Agent preparing response..." if @attempt == 5
-          when "pending"
+          when 'pending'
             puts "\n🔄 Agent analyzing data..." if @attempt == 10
           end
         end
 
         def error_response(agent_message)
           case agent_message.status
-          when "failed"
+          when 'failed'
             "Error: Agent failed - #{agent_message.error_message}"
-          when "cancelled"
-            "Error: Agent response was cancelled"
+          when 'cancelled'
+            'Error: Agent response was cancelled'
           else
-            "Error: Unknown agent error"
+            'Error: Unknown agent error'
           end
         end
 

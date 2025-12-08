@@ -36,9 +36,9 @@ module IcMetrics
       def fetch_page(query, page)
         encoded = URI.encode_www_form_component(query)
         endpoint = "/search/issues?q=#{encoded}&page=#{page}&per_page=#{PER_PAGE}"
-        
+
         data = @client.request(endpoint)
-        data["items"] || []
+        data['items'] || []
       end
     end
   end

@@ -9,12 +9,12 @@ module IcMetrics
       end
 
       def analyze
-        all_prs = @repositories.values.flat_map { |repo| repo["pull_requests"] }
-        all_reviews = @repositories.values.flat_map { |repo| repo["reviews"] }
+        all_prs = @repositories.values.flat_map { |repo| repo['pull_requests'] }
+        all_reviews = @repositories.values.flat_map { |repo| repo['reviews'] }
 
         collaborators = Set.new
-        all_prs.each { |pr| collaborators.add(pr["user"]["login"]) }
-        all_reviews.each { |review| collaborators.add(review["user"]["login"]) }
+        all_prs.each { |pr| collaborators.add(pr['user']['login']) }
+        all_reviews.each { |review| collaborators.add(review['user']['login']) }
 
         {
           unique_collaborators: collaborators.size - 1, # Exclude the developer themselves
@@ -27,12 +27,12 @@ module IcMetrics
 
       def active_repositories_count
         @repositories.count do |_, data|
-          data["commits"].any? || data["pull_requests"].any? || data["reviews"].any?
+          data['commits'].any? || data['pull_requests'].any? || data['reviews'].any?
         end
       end
 
       def cross_repo_activity?
-        @repositories.count { |_, data| data["commits"].any? } > 1
+        @repositories.count { |_, data| data['commits'].any? } > 1
       end
     end
   end

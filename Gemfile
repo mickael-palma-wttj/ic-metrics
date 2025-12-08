@@ -1,16 +1,22 @@
 # frozen_string_literal: true
 
-source "https://rubygems.org"
+source 'https://rubygems.org'
 
-ruby "~> 3.0"
+ruby '~> 3.0'
 
-gem "zeitwerk", "~> 2.6"
-gem "net-http", "~> 0.4.0"
-gem "json", "~> 2.6"
-gem "dotenv", "~> 2.8"
-gem "concurrent-ruby", "~> 1.2"
+gem 'concurrent-ruby', '~> 1.2'
+gem 'dotenv', '~> 2.8'
+gem 'json', '~> 2.6'
+gem 'net-http', '~> 0.4.0'
+gem 'zeitwerk', '~> 2.6'
 
 group :development, :test do
-  gem "pry"
-  gem "rspec"
+  gem 'bundler-audit', require: false
+  gem 'pry'
+  gem 'reek', require: false
+  gem 'rspec'
+  gem 'rubocop', require: false
+  gem 'rubocop-performance', '~> 1.23', require: false # Performance cops
+  gem 'rubocop-rspec', require: false
+  gem 'simplecov', require: false
 end

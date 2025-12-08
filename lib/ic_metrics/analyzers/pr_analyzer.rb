@@ -10,7 +10,7 @@ module IcMetrics
       SECONDS_PER_DAY = HOURS_PER_DAY * MINUTES_PER_HOUR * SECONDS_PER_MINUTE
 
       def initialize(repositories)
-        @prs = repositories.values.flat_map { |repo| repo["pull_requests"] }
+        @prs = repositories.values.flat_map { |repo| repo['pull_requests'] }
       end
 
       def analyze
@@ -28,7 +28,7 @@ module IcMetrics
       private
 
       def state_distribution
-        @prs.group_by { |pr| pr["state"] }.transform_values(&:count)
+        @prs.group_by { |pr| pr['state'] }.transform_values(&:count)
       end
 
       def average_size
@@ -39,18 +39,18 @@ module IcMetrics
       end
 
       def pr_size(pr)
-        (pr["additions"] || 0) + (pr["deletions"] || 0)
+        (pr['additions'] || 0) + (pr['deletions'] || 0)
       end
 
       def merge_rate
         return 0 if @prs.empty?
 
-        merged_count = @prs.count { |pr| pr["merged_at"] }
+        merged_count = @prs.count { |pr| pr['merged_at'] }
         calculate_percentage(merged_count, @prs.size)
       end
 
       def average_merge_time
-        merged_prs = @prs.select { |pr| pr["merged_at"] }
+        merged_prs = @prs.select { |pr| pr['merged_at'] }
         return 0 if merged_prs.empty?
 
         total_days = merged_prs.sum { |pr| days_to_merge(pr) }
@@ -58,8 +58,8 @@ module IcMetrics
       end
 
       def days_to_merge(pr)
-        created = Time.parse(pr["created_at"])
-        merged = Time.parse(pr["merged_at"])
+        created = Time.parse(pr['created_at'])
+        merged = Time.parse(pr['merged_at'])
         (merged - created) / SECONDS_PER_DAY
       end
 

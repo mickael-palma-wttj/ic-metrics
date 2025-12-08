@@ -26,3 +26,7 @@ Thumbs.db
 
 # Ignore logs
 *.log
+
+# Ignore test coverage
+coverage/
+.coverage

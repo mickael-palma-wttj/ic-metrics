@@ -5,17 +5,17 @@ module IcMetrics
   class CLI
     def run(args)
       config = Config.new
-      command = Commands::CommandFactory.create(args[0], config, args[1..-1] || [])
+      command = Commands::CommandFactory.create(args[0], config, args[1..] || [])
       command.execute
     rescue Errors::ConfigurationError => e
       puts "Configuration Error: #{e.message}"
       exit 1
     rescue Errors::RateLimitError => e
-      puts "Error: Rate limit exceeded. Please wait before retrying."
+      puts 'Error: Rate limit exceeded. Please wait before retrying.'
       puts "Endpoint: #{e.endpoint}" if e.endpoint
       exit 1
     rescue Errors::AuthenticationError => e
-      puts "Error: Authentication failed. Please check your GITHUB_TOKEN."
+      puts 'Error: Authentication failed. Please check your GITHUB_TOKEN.'
       puts "Endpoint: #{e.endpoint}" if e.endpoint
       exit 1
     rescue Errors::DataNotFoundError => e

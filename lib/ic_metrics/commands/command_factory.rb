@@ -5,13 +5,13 @@ module IcMetrics
     # Factory to create command objects
     class CommandFactory
       COMMANDS = {
-        "collect" => CollectCommand,
-        "analyze" => AnalyzeCommand,
-        "report" => ReportCommand,
-        "export" => ExportCommand,
-        "export-advanced" => ExportAdvancedCommand,
-        "analyze-csv" => AnalyzeCsvCommand,
-        "help" => HelpCommand
+        'collect' => CollectCommand,
+        'analyze' => AnalyzeCommand,
+        'report' => ReportCommand,
+        'export' => ExportCommand,
+        'export-advanced' => ExportAdvancedCommand,
+        'analyze-csv' => AnalyzeCsvCommand,
+        'help' => HelpCommand
       }.freeze
 
       def self.create(name, config, args)
