@@ -1,0 +1,22 @@
+# Ruby LSP configuration
+# See https://shopify.github.io/ruby-lsp/configuration.html
+
+enabledFeatures:
+  - documentHighlights
+  - documentSymbols
+  - foldingRanges
+  - selectionRanges
+  - semanticHighlighting
+  - formatting
+  - codeActions
+  - diagnostics
+  - hover
+  - completion
+  - signatureHelp
+  - definition
+  - workspaceSymbol
+  - fullTestDiscovery
+
+disabledFeatures:
+  - codeLens
+  - onTypeFormatting
