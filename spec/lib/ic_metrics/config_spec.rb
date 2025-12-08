@@ -85,8 +85,9 @@ RSpec.describe IcMetrics::Config do
       end
 
       it 'raises ConfigurationError with setup instructions' do
-        # Exercise & Verify
+        # Exercise
         expect { config }.to raise_error(IcMetrics::Errors::ConfigurationError) do |error|
+          # Verify
           aggregate_failures do
             expect(error.message).to include('GITHUB_TOKEN environment variable is required')
             expect(error.message).to include('Create a GitHub Personal Access Token')

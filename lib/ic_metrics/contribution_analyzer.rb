@@ -37,9 +37,13 @@ module IcMetrics
     end
 
     def save_and_report(username, analysis)
+      save_analysis_file(username, analysis)
+      generate_report(username, analysis)
+    end
+
+    def save_analysis_file(username, analysis)
       analysis_file = File.join(@data_dir, username, 'analysis.json')
       File.write(analysis_file, JSON.pretty_generate(analysis))
-      generate_report(analysis)
     end
 
     def extract_period(data)
@@ -56,16 +60,32 @@ module IcMetrics
     end
 
     def collect_all_dates(repositories)
-      [].tap do |dates|
-        repositories.each_value do |repo_data|
-          dates.concat(repo_data['commits'].map { |c| c.dig('commit', 'author', 'date') })
-          dates.concat(repo_data['pull_requests'].map { |pr| pr['created_at'] })
-          dates.concat(repo_data['reviews'].map { |r| r['submitted_at'] })
-          dates.concat(repo_data['issues'].map { |i| i['created_at'] })
-          dates.concat((repo_data['pr_comments'] || []).map { |c| c['created_at'] })
-          dates.concat((repo_data['issue_comments'] || []).map { |c| c['created_at'] })
-        end
+      repositories.flat_map do |_name, repo_data|
+        extract_dates_from_repository(repo_data)
       end
+    end
+
+    def extract_dates_from_repository(repo_data)
+      [
+        extract_commit_dates(repo_data['commits']),
+        extract_created_dates(repo_data['pull_requests']),
+        extract_submitted_dates(repo_data['reviews']),
+        extract_created_dates(repo_data['issues']),
+        extract_created_dates(repo_data['pr_comments'] || []),
+        extract_created_dates(repo_data['issue_comments'] || [])
+      ].flatten
+    end
+
+    def extract_commit_dates(commits)
+      commits.map { |c| c.dig('commit', 'author', 'date') }
+    end
+
+    def extract_created_dates(items)
+      items.map { |item| item['created_at'] }
+    end
+
+    def extract_submitted_dates(reviews)
+      reviews.map { |r| r['submitted_at'] }
     end
 
     def calculate_duration_days(sorted_dates)
@@ -86,78 +106,52 @@ module IcMetrics
     end
 
     def generate_recommendations(data)
-      recommendations = []
       summary = data['summary']
+      recommendations = [
+        commit_recommendation(summary),
+        pr_recommendation(summary),
+        review_recommendation(summary),
+        issue_recommendation(summary)
+      ].compact
 
-      # Commit frequency recommendations
-      if summary['total_commits'] < 10
-        recommendations << 'Consider increasing commit frequency for better code tracking'
-      end
-
-      # PR recommendations
-      if summary['total_prs'].zero?
-        recommendations << 'No pull requests found - consider using PRs for code review and collaboration'
-      elsif summary['total_prs'] < summary['total_commits'] / 10
-        recommendations << 'Consider creating more pull requests to improve code review process'
-      end
-
-      # Review participation
-      if summary['total_reviews'] < summary['total_prs']
-        recommendations << 'Increase participation in code reviews to improve team collaboration'
-      end
-
-      # Issue engagement
-      if summary['total_issues'].zero?
-        recommendations << 'Consider engaging more with issues for better project planning and bug tracking'
-      end
-
-      recommendations << 'Great work on contributing to the codebase!' if recommendations.empty?
-
-      recommendations
+      recommendations.empty? ? default_recommendation : recommendations
     end
 
-    def generate_report(analysis)
-      report_lines = []
-      report_lines.push(
-        '# Developer Contribution Analysis Report',
-        '',
-        "**Developer**: #{analysis[:developer]}",
-        "**Organization**: #{@config.organization}",
-        "**Analysis Date**: #{analysis[:analyzed_at]}",
-        ''
-      )
+    def commit_recommendation(summary)
+      return unless summary['total_commits'] < 10
 
-      if analysis[:period][:from]
-        report_lines << "**Activity Period**: #{analysis[:period][:from]} to #{analysis[:period][:to]}"
-        report_lines << "**Duration**: #{analysis[:period][:duration_days]} days"
-        report_lines << ''
+      'Consider increasing commit frequency for better code tracking'
+    end
+
+    def pr_recommendation(summary)
+      if summary['total_prs'].zero?
+        return 'No pull requests found - consider using PRs for code review and collaboration'
       end
+      return unless summary['total_prs'] < summary['total_commits'] / 10
 
-      report_lines << '## Summary'
-      summary = analysis[:summary]
-      report_lines << "- **Total Commits**: #{summary['total_commits']}"
-      report_lines << "- **Total Pull Requests**: #{summary['total_prs']}"
-      report_lines << "- **Total Reviews**: #{summary['total_reviews']}"
-      report_lines << "- **Total Issues**: #{summary['total_issues']}"
-      report_lines << "- **Total PR Comments**: #{summary['total_pr_comments'] || 0}"
-      report_lines << "- **Total Issue Comments**: #{summary['total_issue_comments'] || 0}"
-      report_lines << ''
+      'Consider creating more pull requests to improve code review process'
+    end
 
-      report_lines << '## Activity by Repository'
-      analysis[:detailed_analysis][:activity_by_repository].each do |repo|
-        report_lines << "- **#{repo[:repository]}**: #{repo[:total_activity]} total activities"
-      end
-      report_lines << ''
+    def review_recommendation(summary)
+      return unless summary['total_reviews'] < summary['total_prs']
 
-      report_lines << '## Recommendations'
-      analysis[:recommendations].each do |recommendation|
-        report_lines << "- #{recommendation}"
-      end
+      'Increase participation in code reviews to improve team collaboration'
+    end
 
-      report_content = report_lines.join("\n")
-      report_file = File.join(@data_dir, analysis[:developer], 'report.md')
-      File.write(report_file, report_content)
+    def issue_recommendation(summary)
+      return unless summary['total_issues'].zero?
 
+      'Consider engaging more with issues for better project planning and bug tracking'
+    end
+
+    def default_recommendation
+      ['Great work on contributing to the codebase!']
+    end
+
+    def generate_report(username, analysis)
+      presenter = Presenters::AnalysisReportPresenter.new(analysis, @config)
+      report_file = File.join(@data_dir, username, 'report.md')
+      File.write(report_file, presenter.render)
       puts "Report generated: #{report_file}"
     end
   end
