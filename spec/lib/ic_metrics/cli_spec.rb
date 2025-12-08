@@ -116,8 +116,7 @@ RSpec.describe IcMetrics::CLI do
       let(:error) { IcMetrics::Errors::ApiError.new('API error') }
 
       before do
-        allow(error).to receive(:status_code).and_return(500)
-        allow(error).to receive(:endpoint).and_return('/api/endpoint')
+        allow(error).to receive_messages(status_code: 500, endpoint: '/api/endpoint')
         allow(command).to receive(:execute).and_raise(error)
       end
 

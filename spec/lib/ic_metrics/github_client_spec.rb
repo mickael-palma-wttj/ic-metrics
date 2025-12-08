@@ -40,6 +40,8 @@ RSpec.describe IcMetrics::GithubClient do
   end
 
   describe '#request' do
+    subject(:test_client) { described_class.new(config) }
+
     let(:endpoint) { '/test/endpoint' }
     let(:response_body) { '{"data": "value"}' }
     let(:response) { instance_double(Net::HTTPResponse, body: response_body, code: '200') }
@@ -48,13 +50,11 @@ RSpec.describe IcMetrics::GithubClient do
     before do
       allow(IcMetrics::Services::HttpClient).to receive(:new).and_return(http_client)
       allow(http_client).to receive(:get).with(endpoint).and_return(response)
-      # Recreate client with mocked http_client
-      @test_client = described_class.new(config)
     end
 
     it 'makes request and parses JSON response' do
       # Exercise
-      result = @test_client.request(endpoint)
+      result = test_client.request(endpoint)
 
       # Verify
       aggregate_failures do

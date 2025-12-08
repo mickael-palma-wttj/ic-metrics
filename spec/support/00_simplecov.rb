@@ -7,9 +7,9 @@ require 'simplecov-json'
 SimpleCov.start do
   # Generate both HTML and JSON reports
   formatter SimpleCov::Formatter::MultiFormatter.new([
-    SimpleCov::Formatter::HTMLFormatter,
-    SimpleCov::Formatter::JSONFormatter
-  ])
+                                                       SimpleCov::Formatter::HTMLFormatter,
+                                                       SimpleCov::Formatter::JSONFormatter
+                                                     ])
 
   add_filter '/spec/'
   add_filter '/bin/'
@@ -23,7 +23,7 @@ SimpleCov.start do
   add_group 'Utils', 'lib/ic_metrics/utils'
 
   minimum_coverage 80
-  
+
   # Configure coverage directory
   coverage_dir 'coverage'
 end
