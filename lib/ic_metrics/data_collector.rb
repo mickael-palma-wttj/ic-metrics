@@ -125,13 +125,14 @@ module IcMetrics
     end
 
     def calculate_summary_totals(data)
+      summary = data[:summary]
       data[:repositories].each_value do |repo_data|
-        data[:summary][:total_commits] += repo_data[:commits].size
-        data[:summary][:total_prs] += repo_data[:pull_requests].size
-        data[:summary][:total_reviews] += repo_data[:reviews].size
-        data[:summary][:total_issues] += repo_data[:issues].size
-        data[:summary][:total_pr_comments] += repo_data[:pr_comments].size
-        data[:summary][:total_issue_comments] += repo_data[:issue_comments].size
+        summary[:total_commits] += repo_data[:commits].size
+        summary[:total_prs] += repo_data[:pull_requests].size
+        summary[:total_reviews] += repo_data[:reviews].size
+        summary[:total_issues] += repo_data[:issues].size
+        summary[:total_pr_comments] += repo_data[:pr_comments].size
+        summary[:total_issue_comments] += repo_data[:issue_comments].size
       end
     end
 
@@ -151,9 +152,11 @@ module IcMetrics
         repo_name: repo_name,
         username: username,
         client: @client,
-        since: since,
-        until_date: until_date,
-        quiet: false
+        options: {
+          since: since,
+          until_date: until_date,
+          quiet: false
+        }
       )
       repository.collect
     end

@@ -118,12 +118,14 @@ module IcMetrics
 
     def generate_report(analysis)
       report_lines = []
-      report_lines << '# Developer Contribution Analysis Report'
-      report_lines << ''
-      report_lines << "**Developer**: #{analysis[:developer]}"
-      report_lines << "**Organization**: #{@config.organization}"
-      report_lines << "**Analysis Date**: #{analysis[:analyzed_at]}"
-      report_lines << ''
+      report_lines.push(
+        '# Developer Contribution Analysis Report',
+        '',
+        "**Developer**: #{analysis[:developer]}",
+        "**Organization**: #{@config.organization}",
+        "**Analysis Date**: #{analysis[:analyzed_at]}",
+        ''
+      )
 
       if analysis[:period][:from]
         report_lines << "**Activity Period**: #{analysis[:period][:from]} to #{analysis[:period][:to]}"

@@ -4,14 +4,14 @@ module IcMetrics
   module Models
     # Value object for repository data collection
     class RepositoryData
-      def initialize(repo_name:, username:, client:, since: nil, until_date: nil, quiet: false)
+      def initialize(repo_name:, username:, client:, options: {})
         @repo_name = repo_name
         @username = username
         @client = client
-        @since = since
-        @until_date = until_date
+        @since = options[:since]
+        @until_date = options[:until_date]
+        @quiet = options.fetch(:quiet, false)
         @pull_requests = nil
-        @quiet = quiet
       end
 
       def collect

@@ -1,0 +1,70 @@
+---
+detectors:
+  # Disable checks that are too strict for this codebase
+  IrresponsibleModule:
+    enabled: false
+  
+  MissingSafeMethod:
+    enabled: false
+  
+  UtilityFunction:
+    enabled: false
+  
+  FeatureEnvy:
+    enabled: false
+  
+  DataClump:
+    enabled: false
+  
+  ControlParameter:
+    enabled: false
+  
+  BooleanParameter:
+    enabled: false
+  
+  # Adjust thresholds for complexity
+  TooManyStatements:
+    max_statements: 30
+  
+  TooManyMethods:
+    max_methods: 35
+  
+  TooManyInstanceVariables:
+    max_instance_variables: 8
+  
+  LongParameterList:
+    max_params: 7
+  
+  NestedIterators:
+    max_allowed_nesting: 4
+  
+  DuplicateMethodCall:
+    max_calls: 4
+  
+  NilCheck:
+    enabled: false
+  
+  # Naming
+  UncommunicativeVariableName:
+    accept:
+      - e
+      - i
+      - a
+      - c
+      - r
+      - d
+      - l
+      - m
+      - pr
+      - id
+      - _
+  
+  # Instance variables from base class
+  InstanceVariableAssumption:
+    enabled: false
+
+# Exclude directories
+exclude_paths:
+  - bin/
+  - spec/
+  - vendor/
