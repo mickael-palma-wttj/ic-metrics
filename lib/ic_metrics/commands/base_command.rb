@@ -28,6 +28,10 @@ module IcMetrics
         messages.each { |msg| puts "Error: #{msg}" }
         exit 1
       end
+
+      def list_available_users
+        Services::UserFinder.new(@config.data_directory).print_available_users
+      end
     end
   end
 end

@@ -35,20 +35,6 @@ module IcMetrics
         list_available_users
       end
 
-      def list_available_users
-        data_dir = @config.data_directory
-        return puts "  No data found in #{data_dir}" unless Dir.exist?(data_dir)
-
-        Dir.glob(File.join(data_dir, '*')).each do |user_dir|
-          next unless File.directory?(user_dir)
-
-          username = File.basename(user_dir)
-          contributions_file = File.join(user_dir, 'contributions.json')
-
-          puts "  #{username}" if File.exist?(contributions_file)
-        end
-      end
-
       def export_to_csv(username, output_dir)
         puts "Loading contribution data for #{username}..."
         data = load_data(username)
