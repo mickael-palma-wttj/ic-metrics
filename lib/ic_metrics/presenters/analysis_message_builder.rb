@@ -2,12 +2,11 @@
 
 module IcMetrics
   module Presenters
-    # Builds the analysis message with inline CSV data for Dust API
+    # Builds the analysis message for Dust API (CSV data is uploaded as content fragments)
     class AnalysisMessageBuilder
-      def initialize(username, system_prompt, csv_data)
+      def initialize(username, system_prompt)
         @username = username
         @system_prompt = system_prompt
-        @csv_data = csv_data
       end
 
       def build
@@ -15,9 +14,8 @@ module IcMetrics
           @system_prompt,
           separator,
           header,
-          csv_sections,
           separator,
-          recommendations
+          instructions
         ].join("\n\n")
       end
 
@@ -31,21 +29,14 @@ module IcMetrics
         <<~HEADER
           # GitHub Contribution Analysis for #{@username}
 
-          I'm providing GitHub contribution data in CSV format below.
+          I have uploaded GitHub contribution data as content fragments in CSV format.
+          Please analyze all the uploaded CSV files.
         HEADER
       end
 
-      def csv_sections
-        @csv_data.map { |filename, content| csv_section(filename, content) }.join("\n\n")
-      end
-
-      def csv_section(filename, content)
-        "## #{filename}\n\n```csv\n#{content}```"
-      end
-
-      def recommendations
+      def instructions
         <<~TEXT
-          Please analyze the CSV data above and generate a comprehensive report with:
+          Please analyze the CSV data from the content fragments and generate a comprehensive report with:
           1. Critical issues and red flags
           2. Work pattern analysis
           3. Quality metrics
