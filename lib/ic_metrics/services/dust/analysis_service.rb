@@ -30,9 +30,13 @@ module IcMetrics
           save_analysis(response, request.output_file)
           @logger.completed(request.output_file)
 
-          build_result(response, url.to_s, conversation_id)
+          AnalysisResult.success(
+            content: response,
+            workspace_id: request.workspace_id,
+            conversation_id: conversation_id
+          )
         rescue StandardError => e
-          build_error_result(e)
+          AnalysisResult.failure(e)
         end
 
         private
@@ -79,22 +83,6 @@ module IcMetrics
         def save_analysis(content, output_file)
           FileUtils.mkdir_p(File.dirname(output_file))
           File.write(output_file, content)
-        end
-
-        def build_result(content, url, conversation_id)
-          {
-            content: content,
-            conversation_url: url,
-            conversation_id: conversation_id
-          }
-        end
-
-        def build_error_result(error)
-          {
-            content: "Error: #{error.message}",
-            conversation_url: nil,
-            conversation_id: nil
-          }
         end
       end
     end
