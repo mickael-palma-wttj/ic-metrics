@@ -10,10 +10,9 @@ require 'optparse'
 class FullAnalysis
   STEPS = [
     { name: 'Collecting GitHub data', cmd: 'collect' },
+    { name: 'Exporting base CSV files', cmd: 'export' },
     { name: 'Exporting enhanced commits', cmd: 'export-advanced enhanced' },
     { name: 'Exporting activity timeline', cmd: 'export-advanced timeline' },
-    { name: 'Exporting analysis JSON', cmd: 'export-advanced analysis' },
-    { name: 'Exporting merged CSV', cmd: 'export-advanced merged' },
     { name: 'Running AI analysis', cmd: 'analyze-csv' }
   ].freeze
 
