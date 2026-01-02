@@ -15,7 +15,7 @@ module IcMetrics
 
           client = HttpClient.new(request.api_key, request.workspace_id)
           conversation_id = create_conversation(client, request)
-          url = conversation_url(request.workspace_id, conversation_id)
+          url = ConversationUrl.new(request.workspace_id, conversation_id)
 
           @logger.conversation_created(url)
 
@@ -30,7 +30,7 @@ module IcMetrics
           save_analysis(response, request.output_file)
           @logger.completed(request.output_file)
 
-          build_result(response, url, conversation_id)
+          build_result(response, url.to_s, conversation_id)
         rescue StandardError => e
           build_error_result(e)
         end
@@ -79,10 +79,6 @@ module IcMetrics
         def save_analysis(content, output_file)
           FileUtils.mkdir_p(File.dirname(output_file))
           File.write(output_file, content)
-        end
-
-        def conversation_url(workspace_id, conversation_id)
-          "https://dust.tt/w/#{workspace_id}/conversation/#{conversation_id}"
         end
 
         def build_result(content, url, conversation_id)
