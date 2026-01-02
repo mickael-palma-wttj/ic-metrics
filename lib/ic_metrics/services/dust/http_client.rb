@@ -14,17 +14,48 @@ module IcMetrics
           @workspace_id = workspace_id
         end
 
-        def create_conversation(request_body)
-          post('assistant/conversations', request_body)
+        def create_conversation(**request_body)
+          post('assistant/conversations', **request_body)
         end
 
         def get_conversation(conversation_id)
           get("assistant/conversations/#{conversation_id}")
         end
 
+        def create_content_fragment(conversation_id, title, content)
+          post(
+            "assistant/conversations/#{conversation_id}/content_fragments",
+            title: title,
+            content: content,
+            contentType: 'text/plain',
+            context: default_context
+          )
+        end
+
+        def create_message(conversation_id, agent_id, content)
+          post(
+            "assistant/conversations/#{conversation_id}/messages",
+            content: content,
+            mentions: [{ configurationId: agent_id }],
+            context: default_context,
+            blocking: true
+          )
+        end
+
         private
 
-        def post(endpoint, body)
+        def default_context
+          {
+            timezone: 'Europe/Paris',
+            username: 'ic-metrics-bot',
+            fullName: 'IC Metrics Bot',
+            email: 'bot@example.com',
+            profilePictureUrl: '',
+            origin: 'api'
+          }
+        end
+
+        def post(endpoint, **body)
           make_request(:post, endpoint, body.to_json)
         end
 
