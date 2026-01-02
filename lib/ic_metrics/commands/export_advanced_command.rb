@@ -62,15 +62,11 @@ module IcMetrics
       end
 
       def load_data(username)
-        file = File.join(@config.data_directory, username, 'contributions.json')
-
-        unless File.exist?(file)
-          puts "Error: No data found for #{username}"
-          puts "Run: ic_metrics collect #{username}"
-          exit 1
-        end
-
-        JSON.parse(File.read(file))
+        Services::ContributionLoader.new(@config.data_directory).load(username)
+      rescue Errors::DataNotFoundError
+        puts "Error: No data found for #{username}"
+        puts "Run: ic_metrics collect #{username}"
+        exit 1
       end
 
       def export_enhanced(username, output_dir)

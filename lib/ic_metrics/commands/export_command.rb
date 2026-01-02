@@ -50,16 +50,8 @@ module IcMetrics
       end
 
       def export_to_csv(username, output_dir)
-        contributions_file = File.join(@config.data_directory, username, 'contributions.json')
-
-        unless File.exist?(contributions_file)
-          puts "Error: No contribution data found for #{username}"
-          puts "Run: ic_metrics collect #{username}"
-          exit 1
-        end
-
         puts "Loading contribution data for #{username}..."
-        data = JSON.parse(File.read(contributions_file))
+        data = load_data(username)
 
         FileUtils.mkdir_p(output_dir)
         puts "Exporting to: #{output_dir}"
@@ -281,6 +273,14 @@ module IcMetrics
         end
 
         puts '  ✓ Summary exported to summary.csv'
+      end
+
+      def load_data(username)
+        Services::ContributionLoader.new(@config.data_directory).load(username)
+      rescue Errors::DataNotFoundError
+        puts "Error: No contribution data found for #{username}"
+        puts "Run: ic_metrics collect #{username}"
+        exit 1
       end
     end
   end
