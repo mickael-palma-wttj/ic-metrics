@@ -153,11 +153,11 @@ module IcMetrics
 
               csv << [
                 repo_name, commit['sha'], msg.tr("\n", ' '),
-                msg.length, extract_commit_type(msg),
+                msg.length, Utils::CommitTypeAnalyzer.extract_type(msg),
                 commit['commit']['author']['date'],
                 date.strftime('%A'), date.hour, date.strftime('%B'),
                 stats['additions'] || 0, stats['deletions'] || 0, stats['total'] || 0,
-                conventional_commit?(msg), commit['html_url']
+                Utils::CommitTypeAnalyzer.conventional_commit?(msg), commit['html_url']
               ]
             end
           end
@@ -306,20 +306,6 @@ module IcMetrics
             issue['html_url'], "comments:#{issue['comments']}"
           ]
         end
-      end
-
-      # Helper methods
-      def conventional_commit?(msg)
-        msg.match?(/^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?:/)
-      end
-
-      def extract_commit_type(msg)
-        return 'conventional' if conventional_commit?(msg)
-        return 'merge' if msg.downcase.include?('merge')
-        return 'fix' if msg.downcase.match?(/fix|bug/)
-        return 'feature' if msg.downcase.match?(/feat|add|new/)
-
-        'other'
       end
     end
   end
