@@ -244,8 +244,9 @@ module IcMetrics
           body = pr['body'] || ''
           csv << [
             repo_name, 'pull_request', pr['number'], pr['title'], body,
-            body.length, word_count(body), line_count(body),
-            has_code_blocks?(body), has_links?(body), has_mentions?(body),
+            body.length, Utils::TextAnalyzer.word_count(body), Utils::TextAnalyzer.line_count(body),
+            Utils::TextAnalyzer.has_code_blocks?(body), Utils::TextAnalyzer.has_links?(body),
+            Utils::TextAnalyzer.has_mentions?(body),
             pr['created_at'], pr['html_url']
           ]
         end
@@ -258,8 +259,9 @@ module IcMetrics
           body = issue['body'] || ''
           csv << [
             repo_name, 'issue', issue['number'], issue['title'], body,
-            body.length, word_count(body), line_count(body),
-            has_code_blocks?(body), has_links?(body), has_mentions?(body),
+            body.length, Utils::TextAnalyzer.word_count(body), Utils::TextAnalyzer.line_count(body),
+            Utils::TextAnalyzer.has_code_blocks?(body), Utils::TextAnalyzer.has_links?(body),
+            Utils::TextAnalyzer.has_mentions?(body),
             issue['created_at'], issue['html_url']
           ]
         end
@@ -278,8 +280,9 @@ module IcMetrics
             date_field = type == 'review' ? 'submitted_at' : 'created_at'
             csv << [
               repo_name, type, comment['id'], '', body,
-              body.length, word_count(body), line_count(body),
-              has_code_blocks?(body), has_links?(body), has_mentions?(body),
+              body.length, Utils::TextAnalyzer.word_count(body), Utils::TextAnalyzer.line_count(body),
+              Utils::TextAnalyzer.has_code_blocks?(body), Utils::TextAnalyzer.has_links?(body),
+              Utils::TextAnalyzer.has_mentions?(body),
               comment[date_field], comment['html_url']
             ]
           end
@@ -332,26 +335,6 @@ module IcMetrics
         return 'feature' if msg.downcase.match?(/feat|add|new/)
 
         'other'
-      end
-
-      def word_count(text)
-        text&.split&.size || 0
-      end
-
-      def line_count(text)
-        text&.lines&.size || 0
-      end
-
-      def has_code_blocks?(text)
-        text&.include?('```') || text&.include?('`') || false
-      end
-
-      def has_links?(text)
-        text&.match?(%r{https?://}) || false
-      end
-
-      def has_mentions?(text)
-        text&.include?('@') || false
       end
     end
   end
