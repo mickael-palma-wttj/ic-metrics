@@ -52,11 +52,29 @@ module IcMetrics
         end
 
         def upload_content_fragments(client, conversation_id, csv_data)
-          csv_data.each_with_index do |(filename, content), idx|
-            @logger.uploading_fragment(idx + 1, csv_data.size, filename, content.bytesize)
-            client.create_content_fragment(conversation_id, filename, content)
+          fragments = build_fragments(csv_data)
+
+          fragments.each_with_index do |(title, content), idx|
+            @logger.uploading_fragment(idx + 1, fragments.size, title, content.bytesize)
+            client.create_content_fragment(conversation_id, title, content)
           end
-          @logger.fragments_uploaded(csv_data.size)
+
+          @logger.fragments_uploaded(fragments.size)
+        end
+
+        def build_fragments(csv_data)
+          fragments = []
+
+          csv_data.each do |filename, content|
+            chunks = Utils::ContentChunker.chunk(content, Config::MAX_FRAGMENT_SIZE)
+
+            chunks.each_with_index do |chunk, idx|
+              title = Utils::ContentChunker.part_name(filename, idx, chunks.size)
+              fragments << [title, chunk]
+            end
+          end
+
+          fragments
         end
 
         def send_analysis_message(client, conversation_id, request)

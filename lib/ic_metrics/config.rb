@@ -3,6 +3,9 @@
 module IcMetrics
   # Configuration class to handle GitHub API settings
   class Config
+    # Dust API content fragment size limit (500KB, with safety margin)
+    MAX_FRAGMENT_SIZE = 500_000
+
     attr_reader :github_token, :organization, :data_directory
 
     def initialize
